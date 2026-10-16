@@ -24,27 +24,11 @@ if not st.session_state.get("_local_planner_v2_initialized", False):
 
 st.html("""
 <style>
-@keyframes ambient-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(2%, -1%, 0) scale(1.04); }
-}
-@keyframes orbit {
-  to { transform: rotate(360deg); }
-}
-@keyframes breathe {
-  0%, 100% { transform: scale(.96); opacity: .75; }
-  50% { transform: scale(1.04); opacity: 1; }
-}
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .stApp {
   background:
-    radial-gradient(ellipse at 75% 0%, rgba(26, 121, 132, .16), transparent 38%),
-    radial-gradient(ellipse at 5% 45%, rgba(42, 73, 129, .12), transparent 35%),
-    #071019;
+    radial-gradient(ellipse at 75% 0%, rgba(139, 124, 255, .19), transparent 40%),
+    radial-gradient(ellipse at 5% 45%, rgba(72, 113, 214, .15), transparent 38%),
+    #0a0f1f;
 }
 .stApp::before {
   content: "";
@@ -52,26 +36,24 @@ st.html("""
   inset: -20%;
   z-index: 0;
   pointer-events: none;
-  opacity: .2;
+  opacity: .13;
   background:
-    radial-gradient(ellipse at 24% 28%, rgba(61, 222, 196, .13), transparent 33%),
-    radial-gradient(ellipse at 78% 70%, rgba(69, 112, 221, .12), transparent 36%);
-  filter: blur(34px);
-  animation: ambient-drift 18s ease-in-out infinite;
+    radial-gradient(ellipse at 24% 28%, rgba(167, 139, 250, .16), transparent 34%),
+    radial-gradient(ellipse at 78% 70%, rgba(103, 232, 249, .10), transparent 38%);
+  filter: blur(42px);
 }
 .stApp > header { background: transparent; }
 .stMainBlockContainer {
   position: relative;
   z-index: 1;
-  max-width: 1180px;
-  padding-top: 3rem;
-  padding-bottom: 4rem;
+  max-width: 1120px;
+  padding: 2.25rem 2rem 4rem;
 }
 section[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, rgba(12, 28, 40, .98), rgba(8, 18, 28, .98));
+  background: linear-gradient(180deg, rgba(19, 27, 48, .98), rgba(10, 15, 31, .98));
   border-right: 0;
 }
-section[data-testid="stSidebar"] > div { padding-top: 1.35rem; }
+section[data-testid="stSidebar"] > div { padding: 1.4rem 1.1rem 2rem; }
 section[data-testid="stSidebar"] h2 {
   margin: .25rem 0 .2rem;
   font-size: 1.1rem;
@@ -93,7 +75,7 @@ section[data-testid="stSidebar"] [data-testid="stRadioGroup"] {
   padding: .28rem;
   border: 0;
   border-radius: 11px;
-  background: rgba(7, 17, 26, .34);
+  background: rgba(10, 15, 31, .52);
 }
 section[data-testid="stSidebar"] [data-testid="stRadioGroup"] > div { flex: 1 1 0; min-width: 0; }
 section[data-testid="stSidebar"] [data-testid="stRadioOption"] {
@@ -105,93 +87,107 @@ section[data-testid="stSidebar"] [data-testid="stRadioOption"] {
 }
 section[data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div:first-child { display: none; }
 section[data-testid="stSidebar"] [data-testid="stRadioGroup"] > div[data-selected="true"] [data-testid="stRadioOption"] {
-  background: rgba(75, 205, 180, .12);
+  background: rgba(167, 139, 250, .16);
 }
 section[data-testid="stSidebar"] [data-testid="stRadioGroup"] [data-testid="stMarkdownContainer"] p {
   margin: 0;
   font-size: .82rem;
   font-weight: 600;
 }
-.stMarkdown, [data-testid="stCaptionContainer"] { color: #a8bac6; }
+.stMarkdown, [data-testid="stCaptionContainer"] { color: #b7c2d8; }
 h1, h2, h3 { letter-spacing: -.035em; }
+.stMainBlockContainer [data-testid="stMarkdownContainer"] p { line-height: 1.65; }
+.stMainBlockContainer [data-testid="stMarkdownContainer"] li { margin-bottom: .38rem; line-height: 1.55; }
+button:focus-visible, summary:focus-visible {
+  outline: 2px solid #67e8f9 !important;
+  outline-offset: 3px;
+}
 .challenge-title {
   margin: 0;
   text-align: center;
   font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -.035em;
-  text-shadow: 0 0 34px rgba(112, 240, 208, .2);
+  text-shadow: 0 0 24px rgba(167, 139, 250, .12);
 }
 div[data-testid="stVerticalBlockBorderWrapper"] {
-  border: 0;
+  border: 1px solid rgba(151, 163, 199, .12);
   border-radius: 18px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(23, 83, 91, .2), transparent 72%);
-  box-shadow: none;
-  animation: rise-in .55s ease-out both;
+  background: rgba(18, 26, 47, .48);
+  box-shadow: 0 14px 38px rgba(3, 8, 20, .12);
 }
 div[data-testid="stMetric"] {
   min-height: 118px;
   padding: 1rem 1.1rem;
-  border: 0;
+  border: 1px solid rgba(151, 163, 199, .12);
   border-radius: 14px;
-  background: linear-gradient(145deg, rgba(19, 42, 54, .88), rgba(11, 26, 38, .82));
-  transition: border-color .2s ease, transform .2s ease;
+  background: linear-gradient(145deg, rgba(27, 37, 65, .92), rgba(17, 26, 46, .88));
+  transition: border-color .18s ease, transform .18s ease, background .18s ease;
 }
 div[data-testid="stMetric"]:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0 34px rgba(112, 240, 208, .12);
+  transform: translateY(-1px);
+  border-color: rgba(167, 139, 250, .32);
 }
-div[data-testid="stMetricLabel"] { color: #a8bac6; }
-div[data-testid="stMetricValue"] { color: #e9f5f5; }
+div[data-testid="stMetricLabel"] { color: #b7c2d8; }
+div[data-testid="stMetricValue"] { color: #f0efff; }
 div[data-testid="stTextInput"] input,
 div[data-testid="stTextArea"] textarea,
 div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
-  border-color: transparent;
-  border-radius: 11px;
-  background-color: rgba(7, 17, 26, .72);
-  transition: border-color .2s ease, box-shadow .2s ease;
+  border: 1px solid rgba(151, 163, 199, .22);
+  border-radius: 12px;
+  background-color: rgba(10, 16, 34, .82);
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
 }
 div[data-testid="stTextInput"] input:focus,
 div[data-testid="stTextArea"] textarea:focus {
-  border-color: #70f0d0;
-  box-shadow: 0 0 0 3px rgba(112, 240, 208, .12);
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, .13);
 }
 div[data-testid="stButton"] button,
 div[data-testid="stDownloadButton"] button {
-  border-radius: 11px;
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  min-height: 2.8rem;
+  border-radius: 12px;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
 }
 div[data-testid="stButton"] button:hover,
 div[data-testid="stDownloadButton"] button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(55, 208, 183, .16);
-  border-color: rgba(112, 240, 208, .55);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(139, 124, 255, .12);
+  border-color: rgba(167, 139, 250, .46);
 }
 div[data-testid="stButton"] button[kind="primary"] {
-  box-shadow: 0 0 24px rgba(55, 208, 183, .16);
+  color: #ffffff;
+  background: linear-gradient(135deg, #7969e8, #6257ca);
+  border: 1px solid rgba(186, 174, 255, .22);
+  box-shadow: 0 5px 16px rgba(91, 79, 183, .18);
 }
+[data-testid="stExpander"] details {
+  border: 1px solid rgba(151, 163, 199, .14);
+  border-radius: 14px;
+  background: rgba(18, 26, 47, .44);
+}
+[data-testid="stAlert"] { border-radius: 14px; }
 .copilot-hero {
   position: relative;
   display: flex;
-  min-height: 124px;
+  min-height: 116px;
   align-items: center;
   justify-content: space-between;
   overflow: hidden;
-  margin: 0 0 .65rem;
-  padding: .75rem 1.5rem;
+  margin: 0 0 .3rem;
+  padding: .7rem 1.25rem;
   border: 0;
   border-radius: 0;
-  background: radial-gradient(ellipse at 78% 48%, rgba(30, 130, 137, .13), transparent 34%);
+  background: radial-gradient(ellipse at 78% 48%, rgba(139, 124, 255, .16), transparent 38%);
   box-shadow: none;
-  animation: rise-in .7s ease-out both;
 }
 .hero-copy { position: relative; z-index: 2; max-width: 100%; }
 .hero-eyebrow {
   display: flex;
   align-items: center;
   gap: .6rem;
-  margin: 0 0 1rem;
-  color: #8ca8b2;
+  margin: 0 0 .8rem;
+  color: #aab7d1;
   font: 600 .7rem/1.4 "Segoe UI", sans-serif;
   letter-spacing: .16em;
 }
@@ -199,25 +195,24 @@ div[data-testid="stButton"] button[kind="primary"] {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #70f0d0;
-  box-shadow: 0 0 12px #70f0d0;
-  animation: breathe 2.4s ease-in-out infinite;
+  background: #a78bfa;
+  box-shadow: 0 0 8px rgba(167, 139, 250, .55);
 }
 .hero-title {
   margin: 0;
-  color: #edf7f7;
+  color: #f1f2ff;
   font: 700 clamp(1.8rem, 4vw, 2.4rem)/1.08 "Segoe UI", sans-serif;
   letter-spacing: -.065em;
 }
 .hero-title span {
   white-space: nowrap;
-  color: #70f0d0;
-  text-shadow: 0 0 32px rgba(112, 240, 208, .2);
+  color: #a78bfa;
+  text-shadow: 0 0 24px rgba(167, 139, 250, .16);
 }
 .hero-description {
   max-width: 570px;
-  margin: 1rem 0 0;
-  color: #a8bac6;
+  margin: .8rem 0 0;
+  color: #b7c2d8;
   font: 400 1rem/1.7 "Segoe UI", sans-serif;
 }
 .hero-orbit {
@@ -229,11 +224,11 @@ div[data-testid="stButton"] button[kind="primary"] {
   flex: 0 0 150px;
   place-items: center;
   margin-right: 0;
-  opacity: .4;
+  opacity: .24;
   border: 0;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(65, 184, 166, .12), transparent 68%);
-  box-shadow: 0 0 80px rgba(59, 191, 181, .09);
+  background: radial-gradient(circle, rgba(139, 124, 255, .18), transparent 68%);
+  box-shadow: 0 0 52px rgba(139, 124, 255, .10);
 }
 .hero-orbit::before, .hero-orbit::after {
   position: absolute;
@@ -241,36 +236,27 @@ div[data-testid="stButton"] button[kind="primary"] {
   border: 0;
   border-radius: 50%;
   content: "";
-  animation: orbit 18s linear infinite;
 }
 .hero-orbit::after {
   inset: 31px -7px;
-  border-color: rgba(112, 170, 240, .24);
+  border-color: rgba(103, 232, 249, .28);
   transform: rotate(-35deg);
-  animation-duration: 24s;
-  animation-direction: reverse;
 }
 .hero-core {
   width: 58px;
   height: 58px;
   border: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 34%, #b5fff0, #45d4b7 24%, #117a84 62%, #102c40);
-  box-shadow: 0 0 28px rgba(74, 230, 201, .62), 0 0 76px rgba(74, 230, 201, .24);
-  animation: breathe 4s ease-in-out infinite;
+  background: radial-gradient(circle at 38% 34%, #f2eaff, #a78bfa 30%, #6366f1 66%, #172554);
+  box-shadow: 0 0 22px rgba(167, 139, 250, .38), 0 0 48px rgba(103, 232, 249, .12);
 }
 @media (max-width: 700px) {
-  .stMainBlockContainer { padding: .6rem 1rem 3rem; }
-  .copilot-hero { min-height: 130px; padding: .75rem 1.1rem; }
-  .hero-orbit { position: absolute; right: -62px; width: 140px; height: 140px; opacity: .38; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    scroll-behavior: auto !important;
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
-  }
+  .stMainBlockContainer { padding: 1rem .85rem 2.5rem; }
+  .copilot-hero { min-height: 100px; padding: .65rem .4rem; }
+  .hero-title { font-size: clamp(1.75rem, 8vw, 2.25rem); }
+  .hero-orbit { right: -70px; width: 130px; height: 130px; opacity: .16; }
+  .challenge-title { font-size: 1.5rem; }
+  div[data-testid="stTextArea"] textarea { min-height: 9rem; }
 }
 </style>
 """)
@@ -280,16 +266,16 @@ if st.session_state["theme_mode"] == "Light":
     <style>
     .stApp {
       background:
-        radial-gradient(ellipse at 75% 0%, rgba(50, 167, 163, .12), transparent 38%),
-        radial-gradient(ellipse at 5% 45%, rgba(86, 133, 201, .10), transparent 35%),
-        #f3f7fa;
-      color: #20313f;
+        radial-gradient(ellipse at 75% 0%, rgba(139, 124, 255, .14), transparent 40%),
+        radial-gradient(ellipse at 5% 45%, rgba(103, 150, 230, .10), transparent 38%),
+        #f6f6fc;
+      color: #24253b;
     }
     .stApp::before {
       opacity: .24;
     }
     section[data-testid="stSidebar"] {
-      background: linear-gradient(180deg, rgba(250, 253, 255, .98), rgba(238, 245, 249, .98));
+      background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(242, 242, 251, .98));
       border-right: 0;
     }
     section[data-testid="stSidebar"] *,
@@ -300,7 +286,7 @@ if st.session_state["theme_mode"] == "Light":
     .stMainBlockContainer h2,
     .stMainBlockContainer h3,
     .stMainBlockContainer label {
-      color: #263b49 !important;
+      color: #30314a !important;
       opacity: 1 !important;
     }
     [data-testid="stMarkdownContainer"] p,
@@ -308,27 +294,28 @@ if st.session_state["theme_mode"] == "Light":
     [data-testid="stHeadingWithActionElements"] h1,
     [data-testid="stHeadingWithActionElements"] h2,
     [data-testid="stHeadingWithActionElements"] h3,
-    [data-testid="stWidgetLabel"] * { color: #344b5b !important; }
+    [data-testid="stWidgetLabel"] * { color: #42435d !important; }
     div[data-testid="stVerticalBlockBorderWrapper"] {
-      border: 0;
-      background: radial-gradient(ellipse at 50% 0%, rgba(183, 231, 231, .28), transparent 72%);
-      box-shadow: none;
+      border: 1px solid rgba(100, 93, 153, .12);
+      background: rgba(255, 255, 255, .76);
+      box-shadow: 0 12px 32px rgba(55, 48, 100, .06);
     }
     div[data-testid="stMetric"] {
-      border: 0;
-      background: linear-gradient(145deg, #ffffff, #eef5f8);
+      border: 1px solid #e7e4f1;
+      background: linear-gradient(145deg, #ffffff, #f0effa);
     }
-    div[data-testid="stMetricLabel"] { color: #526575; }
-    div[data-testid="stMetricValue"] { color: #20313f; }
+    div[data-testid="stMetric"]:hover { border-color: #c9c0f1; }
+    div[data-testid="stMetricLabel"] { color: #65667c; }
+    div[data-testid="stMetricValue"] { color: #27283e; }
     div[data-testid="stTextInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
-      color: #20313f !important;
-      border-color: transparent !important;
+      color: #27283e !important;
+      border-color: #e1def0 !important;
       background-color: #ffffff !important;
     }
     div[data-testid="stSelectbox"] [data-baseweb="select"] * {
-      color: #20313f !important;
+      color: #27283e !important;
     }
     div[data-testid="stSelectbox"] div[role="group"] {
       border: 0 !important;
@@ -336,42 +323,56 @@ if st.session_state["theme_mode"] == "Light":
       background: #ffffff !important;
     }
     div[data-testid="stSelectbox"] input[role="combobox"] {
-      color: #20313f !important;
+      color: #27283e !important;
       background: transparent !important;
     }
     div[data-testid="stSelectbox"] button {
-      color: #526575 !important;
+      color: #65667c !important;
       background: transparent !important;
     }
     div[data-testid="stTextInput"] input::placeholder,
     div[data-testid="stTextArea"] textarea::placeholder { color: #778895; }
     div[data-testid="stTextInput"] input:focus,
     div[data-testid="stTextArea"] textarea:focus {
-      border-color: #168f83;
-      box-shadow: 0 0 0 3px rgba(22, 143, 131, .13);
+      border-color: #7867e8;
+      box-shadow: 0 0 0 3px rgba(120, 103, 232, .15);
     }
     section[data-testid="stSidebar"] [data-testid="stRadioGroup"] {
-      border-color: #d5e0e7;
-      background: #eaf1f5;
+      border: 1px solid #e1def0;
+      background: #eeedf7;
     }
     section[data-testid="stSidebar"] [data-testid="stRadioGroup"] > div[data-selected="true"] [data-testid="stRadioOption"] {
       background: #ffffff;
-      box-shadow: 0 1px 4px rgba(29, 54, 72, .12);
+      box-shadow: 0 1px 5px rgba(55, 48, 100, .12);
     }
-    .hero-title { color: #20313f; }
-    .hero-title span { color: #087e78; text-shadow: 0 0 28px rgba(8, 126, 120, .13); }
+    .hero-title { color: #27283e; }
+    .hero-title span { color: #6957d9; text-shadow: 0 0 28px rgba(105, 87, 217, .16); }
+    .hero-description { color: #65667c; }
+    button:focus-visible, summary:focus-visible { outline-color: #6957d9 !important; }
     .hero-orbit { opacity: .28; }
     div[data-testid="stButton"] button:not([kind="primary"]),
     div[data-testid="stDownloadButton"] button {
-      color: #20313f;
-      border-color: #c8d6df;
-      background: rgba(255, 255, 255, .82);
+      color: #30314a;
+      border-color: #d9d6e9;
+      background: rgba(255, 255, 255, .9);
+    }
+    div[data-testid="stButton"] button:not([kind="primary"]):hover,
+    div[data-testid="stDownloadButton"] button:hover {
+      background: #f4f1ff;
+      border-color: #bdb2ec;
     }
     div[data-testid="stButton"] button[kind="primary"] {
       color: #ffffff;
-      background: #0f766e;
+      background: linear-gradient(135deg, #7969e8, #6257ca);
+      border-color: #7868d9;
     }
-    header[data-testid="stHeader"] { background: rgba(243, 247, 250, .88); }
+    [data-testid="stExpander"] details {
+      border-color: rgba(100, 93, 153, .16);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .56);
+    }
+    [data-testid="stAlert"] { border-radius: 14px; }
+    header[data-testid="stHeader"] { background: rgba(246, 246, 252, .9); }
     </style>
     """)
 
@@ -411,7 +412,7 @@ OPPORTUNITY_GUIDES = {
 # Synthetic scenarios for the explicit Load example action (not used as initial values).
 # Tuple fields: client, category, users, tools/data, constraints, problem statement.
 EXAMPLE_CASES = [
-    ("Sample Retail Co.", "Customer support", "Support team", "Shared inbox and FAQ documents", "Human approval for customer-facing answers", "Our support team receives many repetitive questions each day. Staff search several documents before replying, so response times are slow and answers can be inconsistent."),
+    ("Assessment demo (hypothetical)", "Internal workflow", "Discovery consultants (hypothetical)", "Synthetic discovery notes and public website information", "Use synthetic or public information; a consultant approves recommendations", "Assessment scenario (hypothetical): A software consultancy spends time turning discovery-call notes and public client information into a first-pass requirements brief. Important details such as affected users, current tools, and constraints can be missed. How could a local copilot make the review more consistent while keeping a consultant in control?"),
     ("Harbor Travel (Sample)", "Customer support", "Customer service agents", "Email inbox and booking records", "Do not change or cancel bookings automatically", "Agents spend a long time finding booking details across emails and records. Customers wait for simple itinerary answers."),
     ("BrightPath Learning (Sample)", "Customer support", "Students and support staff", "Help center articles", "Answers must use approved school policies", "Students frequently ask the same questions about course access. Staff manually search help articles and replies are delayed during busy periods."),
     ("Northstar Utilities (Sample)", "Customer support", "Service desk agents", "Ticketing system and service guides", "Escalate safety issues to a human immediately", "The service desk receives a high volume of similar outage questions. Agents repeatedly look up service guides and response times increase during incidents."),
@@ -615,15 +616,99 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
     if not context.get("constraints") and len(questions) < 2:
         questions.append("What must stay under human review or never be automated?")
 
+    opportunity = guide["use_case"] if guide else "A focused workflow improvement opportunity"
+    data_note = (
+        f"Start with a small, approved sample from **{source}**; confirm access, quality, ownership, and retention before use."
+        if source
+        else "The data source was not specified. Confirm which approved records or documents can be used before selecting any data."
+    )
+    risk_note = guide["risk"] if guide else "The workflow and risks need discovery before choosing an automation method."
+
     answer_parts = [
         "**What I understood**\n" + category_line + " " + friction_line,
+        "**Opportunity to explore**\n" + opportunity + ". Treat this as a hypothesis to validate with the affected users, not a confirmed client requirement.",
         "**Recommended direction**\n" + recommendation,
-        "**A practical plan**\n" + "\n".join(f"{index}. {step}" for index, step in enumerate(steps, start=1)),
+        "**How the proposed workflow could work**\n"
+        "1. A staff member provides a request or selects an approved source.\n"
+        "2. The system identifies relevant details and drafts a suggested next step.\n"
+        "3. It shows the source or reason behind the suggestion and flags missing information.\n"
+        "4. A person checks, edits, and approves the result before it affects a customer or business record.",
+        "**Practical pilot plan**\n" + "\n".join(f"{index}. {step}" for index, step in enumerate(steps, start=1)),
+        "**Data and safeguards**\n" + data_note + " " + safety_step + " Follow the client's privacy, access, and retention rules; do not use personal or confidential data without approval.",
+        "**Risks to validate**\n" + risk_note + " Check for incorrect or incomplete suggestions, and keep an easy human correction and escalation path.",
         "**What to measure**\nChoose two or three: " + ", ".join(metrics[:4]) + ".",
+        "Set a baseline before the pilot and agree target improvements with the process owner; this prototype does not invent performance targets.",
     ]
     if questions:
         answer_parts.append("**Details to confirm**\n" + "\n".join(f"- {question}" for question in questions))
+    answer_parts.append(
+        "**Prototype scope**\nThis app currently uses local keyword rules and built-in guides. It does not call an AI model, connect to client systems, or validate the proposed workflow with real users."
+    )
     return "\n\n".join(answer_parts)
+
+
+def generate_assessment_addendum(text: str, context: dict) -> str:
+    """Create practical MVP, acceptance, data, and evaluation guidance without inventing facts."""
+    users = context.get("users") or "an affected user (not specified)"
+    source = context.get("systems") or "Not specified"
+    constraints = context.get("constraints") or "Not specified"
+    category = context.get("category") or extract_client_context(text).get("category")
+    guide = OPPORTUNITY_GUIDES.get(category or "")
+    metrics = guide["metrics"][:3] if guide else ["Time per task", "Errors or rework", "User feedback"]
+
+    questions = []
+    if not context.get("users"):
+        questions.append("Who performs this workflow, and who is affected by its outcome?")
+    if not context.get("systems"):
+        questions.append("Which approved documents, tools, or data sources are involved?")
+    if not context.get("constraints"):
+        questions.append("What privacy, security, approval, or automation limits must the solution follow?")
+    questions.append("What baseline and target should the process owner use to decide whether a pilot succeeds?")
+
+    return f"""## Suggested MVP features
+1. Accept a problem statement and optional client context.
+2. Extract only details explicitly stated and flag missing information.
+3. Produce an editable first-pass opportunity brief with follow-up questions.
+4. Keep a person responsible for reviewing recommendations and consequential actions.
+5. Export the reviewed brief for discussion.
+
+These are proposed MVP requirements; the current prototype demonstrates local extraction, rule-based categorization, report generation, and export.
+
+## Example user story and acceptance checks
+**User story:** As {users}, I want a first-pass brief from discovery notes so I can review the problem and next steps more consistently.
+
+**Acceptance checks:**
+- The brief reflects the problem statement and does not add unstated client facts.
+- Missing users, systems, or constraints are labeled “Not specified” or asked as questions.
+- A user can edit the context before generating the brief.
+- The output identifies its local, rules-based nature and leaves important decisions to a human.
+
+## Data checklist
+- Problem statement: provided by the user.
+- Intended users: {users}.
+- Current tools or data: {source}.
+- Constraints: {constraints}.
+- Confirm before a real pilot: data owner, approved sample, access permissions, sensitive fields, retention period, and consent or other required approval.
+
+## Suggested test scenarios
+These are checks to run; they are not claimed test results.
+1. **Complete statement:** include a workflow, affected users, and a named source; confirm the report uses those details accurately.
+2. **Missing context:** omit users and systems; confirm the app leaves them unspecified and asks follow-up questions.
+3. **Explicit safeguard:** state that a person must approve an action; confirm the safeguard appears in the proposed workflow.
+4. **Unclear or out-of-scope statement:** confirm the app expresses uncertainty and recommends discovery rather than claiming a confident classification.
+
+## Pilot measurement plan
+First record the current baseline. Then select two or three measures with the process owner, for example: {", ".join(metrics)}. Define the measurement window and target with the owner; this prototype does not invent impact figures.
+
+## Suggested implementation roadmap
+1. **Discover:** confirm the process, affected users, data owner, and constraints.
+2. **Prepare:** agree on approved examples, baseline measures, and acceptance checks.
+3. **Pilot:** review outputs with a small user group and log corrections or unsafe suggestions.
+4. **Decide:** refine, stop, or expand based on measured results and human feedback.
+
+## Assumptions and questions to resolve
+No client workflow, system access, data permission, or performance target is assumed beyond what was entered. Confirm:
+""" + "\n".join(f"- {question}" for question in questions)
 
 
 def analyze_requirements() -> None:
@@ -670,17 +755,26 @@ def load_example() -> None:
 
 def make_report(client: str, result: dict) -> str:
     generated_with = "Built-in local planner (rule-based; no API)"
-    return f"""# Solution Approach
+    return f"""# Cynbit AI Opportunity Brief
 
 **Client or project:** {client or 'Not specified'}
 **Prepared:** {date.today().isoformat()}
 **Generated with:** {generated_with}
 
+## Assessment opportunity
+Client discovery and requirements analysis copilot. This is a proposal based on Cynbit's public service positioning, not a claim about its current internal workflow.
+
+## Opportunity rationale
+The proposed workflow turns discovery notes into a structured first-pass brief for a consultant to review. It is a hypothesis for assessment and must be validated with real users before treating it as a confirmed business need.
+
 ## Problem statement
 {result['description']}
 
-## Solution plan
+## Recommended solution and pilot plan
 {result['solution_approach']}
+
+## MVP and validation addendum
+{result.get('assessment_addendum', 'No validation addendum is available for this saved result. Generate the brief again to refresh it.')}
 
 ## Context provided
 - Problem area: {result['context'].get('category') or 'Not specified'}
@@ -688,7 +782,71 @@ def make_report(client: str, result: dict) -> str:
 - Current tools or data: {result['context'].get('systems') or 'Not specified'}
 - Constraints: {result['context'].get('constraints') or 'Not specified'}
 
-Confirm the approach with the people who do the work before building a solution.
+## Expected value and evaluation
+Measure the current process first, then compare the pilot on two or three agreed measures such as task time, rework, backlog, or user acceptance. No financial savings or performance improvement is assumed in this report.
+
+## Recommendation
+Run a small, human-reviewed discovery pilot with approved or synthetic information. Confirm the problem, data access, safeguards, and success criteria with the process owner before building or connecting production systems.
+"""
+
+
+def make_technical_report(result: dict) -> str:
+    context = result["context"]
+    category = context.get("category") or "Not specified"
+    return f"""# Cynbit AI Technical Approach Report
+
+**Prepared:** {date.today().isoformat()}
+**Prototype:** Cynbit AI Project Copilot
+**Implementation status:** Local assessment prototype; no external AI service or client system connection
+
+## 1. Scope and objective
+Demonstrate how a client discovery note could be converted into a structured first-pass opportunity brief. The consultant remains responsible for validating details and approving recommendations.
+
+## 2. Current prototype architecture
+**Flow:** Problem statement + optional context → local detail extraction → keyword classification → built-in opportunity guide → draft brief → user review and Word/CSV export.
+
+1. Streamlit collects the problem statement and optional context fields.
+2. Local regular-expression rules extract only details explicitly present in the statement.
+3. Keyword rules classify a likely workflow category and identify friction signals.
+4. A built-in guide provides a matching starting direction, measures, risks, and follow-up questions.
+5. The app renders the report and exports Word and CSV files.
+
+This is a deterministic rules-based baseline, not a trained ML model or generative language model. It runs without an API key and does not send the statement to a provider.
+
+## 3. Inputs and data pipeline
+- Problem statement: {result['description']}
+- Problem area: {category}
+- Intended users: {context.get('users') or 'Not specified'}
+- Current tools or data: {context.get('systems') or 'Not specified'}
+- Constraints: {context.get('constraints') or 'Not specified'}
+
+The current prototype uses the user-entered text and optional context only. Production data sources, retention rules, access permissions, and data quality are not specified and must be agreed before any integration.
+
+## 4. Model and prompt approach
+There is no model or prompt in the current implementation. The assessment prototype uses transparent keyword rules and fixed guides so its output is repeatable and inspectable. If a future version needs more flexible language understanding, first compare candidate models on an approved, de-identified test set and retain a rules-only fallback. That future capability is not included in this app.
+
+## 5. Output contract and human review
+The app returns a problem interpretation, opportunity hypothesis, proposed workflow, practical pilot steps, data safeguards, risks, measures, and unanswered questions. Missing details are labeled as not specified or presented as questions. A human should review the output before it is used for a client decision.
+
+## 6. Evaluation plan
+Establish a baseline with representative, approved examples. Review category classification and extracted details for correctness, omissions, and unsupported assumptions. In a pilot, track two or three agreed operational measures, such as time per brief, correction rate, and consultant acceptance. Set target thresholds with the process owner; this report does not invent targets.
+
+## 7. Risks and controls
+- Incorrect classification: show the detected category and allow the user to correct context.
+- Missing or unsupported details: label gaps and ask questions rather than guessing.
+- Sensitive information: use synthetic or approved data for the prototype; define access and retention before production use.
+- Over-reliance on recommendations: require consultant review and keep final decisions with a person.
+- Template limitations: expand and evaluate the local rules against representative examples before relying on them.
+
+## 8. Execution plan
+1. Confirm the use case, users, current workflow, and constraints through discovery.
+2. Agree on approved sample data, privacy controls, baseline measures, and acceptance criteria.
+3. Test the current local prototype with representative synthetic or approved examples and record errors.
+4. Refine extraction rules and report templates; have consultants review every output.
+5. Decide whether a model is needed only after measuring the rules-based baseline; evaluate any future model separately before integration.
+
+## 9. Known limitations
+The prototype does not connect to source systems, retrieve or cite documents, call an AI model, learn from feedback, or provide validated client-specific performance estimates. Its category guides and extraction rules are hand-authored and should be treated as a demonstration.
 """
 
 
@@ -769,7 +927,12 @@ st.html("""
   <div class="hero-orbit" aria-hidden="true"><div class="hero-core"></div></div>
 </section>
 """)
-st.caption("Enter a client challenge to get a clear, practical solution plan.")
+st.caption("Client discovery and AI opportunity analysis · assessment prototype")
+st.html('<p class="hero-description">Turn a client\'s challenge into a structured first-pass opportunity brief for a human consultant to review.</p>')
+
+with st.expander("Why this opportunity?", icon=":material/lightbulb:"):
+    st.write("**Selected opportunity hypothesis:** a client discovery copilot that organizes problem statements and discovery notes into a first-pass brief: problem area, affected users, current tools, constraints, a possible solution approach, and questions to confirm.")
+    st.write("This is a proposal based on Cynbit's public positioning, not a claim about its internal workflow. Cynbit describes a **Discovery & Audit** stage and AI automation/custom software services on its [website](https://www.cynbit.in/) and [services page](https://www.cynbit.in/services).")
 
 with st.sidebar:
     st.header("Client context", icon=":material/folder_shared:")
@@ -784,13 +947,13 @@ with st.sidebar:
 
 with st.container():
     st.html('<h3 class="challenge-title">Define the challenge</h3>')
-    st.caption("Describe the current workflow, where it gets stuck, and what a better outcome looks like.")
-    problem = st.text_area("What is difficult today, how often does it happen, and what outcome is desired?", height=150,
-        placeholder="For example: Our support team spends too much time searching documents to answer repeated questions...", key="problem", on_change=refresh_analysis_from_context)
+    st.caption("Describe the client's current workflow, where it gets stuck, and what a better outcome looks like.")
+    problem = st.text_area("What is the client's challenge or discovery note?", height=150,
+        placeholder="For example: A support team searches several FAQ documents to answer repeated questions, causing delays and inconsistent replies...", key="problem", on_change=refresh_analysis_from_context)
 
 analyze_button, example_button = st.columns([3, 2], gap="medium")
 with analyze_button:
-    st.button("Generate solution approach", type="primary", icon=":material/auto_awesome:", on_click=analyze_requirements, width="stretch")
+    st.button("Generate opportunity brief", type="primary", icon=":material/auto_awesome:", on_click=analyze_requirements, width="stretch")
 with example_button:
     st.button("Load example", icon=":material/quick_reference:", on_click=load_example, width="stretch")
 if "example_status" in st.session_state:
@@ -801,13 +964,14 @@ st.caption("Private by design: your problem statement stays in this app and is n
 
 if st.session_state.pop("analysis_requested", False):
     try:
-        with st.spinner("Building a tailored local solution plan..."):
+        with st.spinner("Structuring the discovery brief locally..."):
             text = st.session_state.get("problem", "").strip()
             context = st.session_state.get("submitted_context", {})
             answer = generate_local_solution_approach(text, context)
         st.session_state["analysis"] = {
             "description": text,
             "solution_approach": answer,
+            "assessment_addendum": generate_assessment_addendum(text, context),
             "context": context,
         }
         st.session_state["analysis_stale"] = False
@@ -815,22 +979,46 @@ if st.session_state.pop("analysis_requested", False):
         st.session_state["analysis_error"] = f"The local planner could not build an approach: {exc}"
 
 if st.session_state.get("analysis_error"):
-    st.error(f"Could not generate the solution approach: {st.session_state['analysis_error']}")
+    st.error(f"Could not generate the opportunity brief: {st.session_state['analysis_error']}")
 if st.session_state.get("analysis_stale"):
-    st.info("Your problem statement or context changed. Generate the solution approach again to update it.")
+    st.info("Your problem statement or context changed. Generate the opportunity brief again to update it.")
 
 if "analysis" in st.session_state:
     result = st.session_state["analysis"]
     if "solution_approach" not in result:
         st.session_state.pop("analysis", None)
     else:
-        st.header("Solution approach", icon=":material/insights:")
-        st.info("Built locally from the problem details and planning rules. No information is sent to an AI service.")
-        with st.container(border=True):
-            st.markdown(result["solution_approach"])
-        st.subheader("Export your approach")
-        report_col, summary_col = st.columns(2)
+        st.header("Opportunity analysis", icon=":material/insights:")
+        st.info("This assessment report is assembled locally from transparent planning rules. No information is sent to an AI service.")
+        opportunity_tab, validation_tab, technical_tab = st.tabs(["Opportunity report", "MVP & validation", "Technical approach"])
+        with opportunity_tab:
+            with st.container(border=True):
+                st.markdown(result["solution_approach"])
+        with validation_tab:
+            with st.container(border=True):
+                st.markdown(result.get("assessment_addendum", "Generate the brief again to see MVP and validation recommendations."))
+        technical_report_text = make_technical_report(result)
+        with technical_tab:
+            st.markdown("**Prototype flow** · a local, rules-based process with human review")
+            flow_steps = [
+                ("1 · Input", "Problem statement and optional context"),
+                ("2 · Extract", "Explicit details and likely workflow"),
+                ("3 · Draft", "Built-in guide creates a suggested brief"),
+                ("4 · Review", "Person checks and edits recommendations"),
+                ("5 · Export", "Word reports and CSV summary"),
+            ]
+            flow_columns = st.columns(len(flow_steps), gap="small")
+            for flow_column, (flow_title, flow_copy) in zip(flow_columns, flow_steps):
+                with flow_column:
+                    with st.container(border=True):
+                        st.markdown(f"**{flow_title}**")
+                        st.caption(flow_copy)
+            with st.container(border=True):
+                st.markdown(technical_report_text)
+        st.subheader("Assessment downloads")
+        report_col, technical_col, summary_col = st.columns(3, gap="medium")
         report = markdown_to_docx(make_report(client, result))
+        technical_report = markdown_to_docx(technical_report_text)
         table = pd.DataFrame([{
             "client": client,
             "problem_statement": result["description"],
@@ -838,9 +1026,12 @@ if "analysis" in st.session_state:
             "generated_with": "Built-in local planner (rule-based; no API)",
         }])
         with report_col:
-            st.download_button("Download solution plan (Word)", report, file_name="cynbit_solution_approach.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch")
+            st.download_button("Opportunity report (Word)", report, file_name="cynbit_ai_opportunity_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch")
+        with technical_col:
+            st.download_button("Technical approach (Word)", technical_report, file_name="cynbit_ai_technical_approach.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/build:", width="stretch")
         with summary_col:
-            st.download_button("Download solution plan (CSV)", table.to_csv(index=False), file_name="cynbit_solution_approach.csv", mime="text/csv", icon=":material/download:", width="stretch")
+            st.download_button("Summary data (CSV)", table.to_csv(index=False), file_name="cynbit_ai_opportunity_summary.csv", mime="text/csv", icon=":material/download:", width="stretch")
 
 with st.expander("How this prototype works", icon=":material/info:"):
-    st.write("The planner runs entirely inside this app. It uses local keyword patterns to identify a likely workflow type and pain points, combines those with your optional context, then builds a plan, measures, and follow-up questions from built-in guides. It does not call an external language model, so its answers are predictable and private but less open-ended than a generative AI service.")
+    st.write("**Prototype pipeline:** problem statement and optional context → extraction of explicitly stated details → local keyword classification of workflow and friction signals → a matching built-in opportunity guide → draft approach, measures, and missing-detail questions → consultant review and Word/CSV export.")
+    st.write("This version is a deterministic baseline, not a trained ML model or language model. It uses no API and makes no external requests. Its outputs are easy to inspect and repeat, but are limited to the categories and rules included in the code.")
