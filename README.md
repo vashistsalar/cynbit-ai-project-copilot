@@ -43,9 +43,10 @@ Click **Generate opportunity brief** to see the analysis. Click **Load example**
 - `classifier.py` — TF-IDF and Logistic Regression category classifier and evaluation.
 - `requirements.txt` — Python packages needed to run the app.
 - `ASSESSMENT_REPORT.docx` — assessment report included with the project.
+- `TECHNICAL_APPROACH_REPORT.docx` — standalone report describing the prototype architecture, data flow, model choices, evaluation, safeguards, and next steps.
 
 ## Assessment notes
 
 The proposed opportunity is to help structure client requirements and identify a suitable AI pilot during discovery. This is a proposal based on Cynbit's publicly described services; it is not a claim about Cynbit's internal processes. The prototype uses synthetic examples and has not been validated with real client data or users. Before any real pilot, agree on data access, privacy safeguards, review responsibilities, and success measures with the client.
 
-For submission, include the live app link, this GitHub repository, and the generated Word reports requested by the assessment.
+For submission, include the live app link, this GitHub repository, and the Word reports requested by the assessment. The technical approach report is included in this repository; the app can also generate reports for a specific problem statement.
