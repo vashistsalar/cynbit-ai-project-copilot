@@ -8,6 +8,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pandas as pd
 import streamlit as st
+from classifier import cross_validate_categories, predict_category, train_category_classifier
 
 
 st.set_page_config(page_title="Cynbit AI Project Copilot", page_icon=":material/explore:", layout="wide")
@@ -436,6 +437,7 @@ CATEGORY_KEYWORD_RULES = {
         r"\bwork orders?\b", r"\brequests?\b", r"\bschedules?\b", r"\btriage\b",
         r"\bmaintenance\b", r"\b(?:assign|assigned|assignment|route|routed|routing)\b",
         r"\bbug reports?\b", r"\bpolicy questions?\b", r"\boperations\b",
+        r"\bdiscovery (?:call )?notes?\b", r"\brequirements briefs?\b",
     ],
     "Product or service idea": [
         r"\bnew product\b", r"\bproduct idea\b", r"\bproduct feature\b", r"\bproduct concept\b",
@@ -510,6 +512,18 @@ EXAMPLE_CASES = [
     ("Sample City Services", "Product or service idea", "Residents", "Published city service pages", "Use only public guidance; urgent issues go to staff", "Residents have trouble finding the right city service page. We want to test a plain-language guide to published information."),
     ("Meadow Health Education (Sample)", "Product or service idea", "Patients learning about appointments", "Clinician-approved educational content", "No diagnosis or treatment recommendations", "Patients often arrive unsure what appointment instructions mean. We want to test a simple explanation tool based on clinician-approved materials."),
 ]
+
+
+@st.cache_resource(show_spinner=False)
+def get_category_classifier():
+    """Cache the trained demonstration classifier and its reproducible CV results."""
+    model = train_category_classifier(EXAMPLE_CASES)
+    metrics = cross_validate_categories(EXAMPLE_CASES, classify_category_by_rules)
+    print(
+        "Category cross-validation accuracy — "
+        f"rules: {metrics['rule_accuracy']:.1%}; ML: {metrics['ml_accuracy']:.1%}"
+    )
+    return model, metrics
 
 
 def extract_client_context(text: str) -> dict:
@@ -707,7 +721,7 @@ def generate_local_solution_approach(text: str, context: dict) -> str | None:
     if questions:
         answer_parts.append("**Details to confirm**\n" + "\n".join(f"- {question}" for question in questions))
     answer_parts.append(
-        "**Prototype scope**\nThis app currently uses local keyword rules and built-in guides. It does not call an AI model, connect to client systems, or validate the proposed workflow with real users."
+        "**Prototype scope**\nThe solution plan uses local keyword rules and built-in guides. A separate small classifier compares category predictions; it does not write the plan. The app does not connect to client systems or validate the proposal with real users."
     )
     return "\n\n".join(answer_parts)
 
@@ -858,7 +872,7 @@ Run a small, human-reviewed discovery pilot with approved or synthetic informati
 """
 
 
-def make_technical_report(result: dict) -> str:
+def make_technical_report(result: dict, classifier_metrics: dict[str, float]) -> str:
     context = result["context"]
     category = context.get("category") or "Not specified"
     return f"""# Cynbit AI Technical Approach Report
@@ -871,15 +885,15 @@ def make_technical_report(result: dict) -> str:
 Demonstrate how a client discovery note could be converted into a structured first-pass opportunity brief. The consultant remains responsible for validating details and approving recommendations.
 
 ## 2. Current prototype architecture
-**Flow:** Problem statement + optional context → local detail extraction → keyword classification → built-in opportunity guide → draft brief → user review and Word/CSV export.
+**Flow:** Problem statement + optional context → local detail extraction → rule and ML category comparison → built-in opportunity guide → rule-based draft brief → user review and Word/CSV export.
 
 1. Streamlit collects the problem statement and optional context fields.
 2. Local regular-expression rules extract only details explicitly present in the statement.
-3. Keyword rules classify a likely workflow category and identify friction signals.
+3. Keyword rules classify the likely workflow and identify friction signals. A separate TF-IDF + Logistic Regression classifier predicts a category for side-by-side comparison.
 4. A built-in guide provides a matching starting direction, measures, risks, and follow-up questions.
 5. The app renders the report and exports Word and CSV files.
 
-This is a deterministic rules-based baseline, not a trained ML model or generative language model. It runs without an API key and does not send the statement to a provider.
+The solution plan remains a deterministic rules-based baseline. The comparison classifier is trained locally on only 34 synthetic examples and is a demonstration, not production-ready. The app has no generative language model, needs no API key, and does not send the statement to a provider.
 
 ## 3. Inputs and data pipeline
 - Problem statement: {result['description']}
@@ -891,13 +905,13 @@ This is a deterministic rules-based baseline, not a trained ML model or generati
 The current prototype uses the user-entered text and optional context only. Production data sources, retention rules, access permissions, and data quality are not specified and must be agreed before any integration.
 
 ## 4. Model and prompt approach
-There is no model or prompt in the current implementation. The assessment prototype uses transparent keyword rules and fixed guides so its output is repeatable and inspectable. If a future version needs more flexible language understanding, first compare candidate models on an approved, de-identified test set and retain a rules-only fallback. That future capability is not included in this app.
+The solution plan uses transparent keyword rules and fixed guides. The category comparison uses TF-IDF features with Logistic Regression, trained on the 34 synthetic examples. The held-out 5-fold cross-validation accuracy measured on those examples was {classifier_metrics['ml_accuracy']:.1%} for the ML classifier; the rule baseline scored {classifier_metrics['rule_accuracy']:.1%}. These small synthetic-data results are demonstration measurements, not evidence of production performance. There is no generative model or prompt.
 
 ## 5. Output contract and human review
 The app returns a problem interpretation, opportunity hypothesis, proposed workflow, practical pilot steps, data safeguards, risks, measures, and unanswered questions. Missing details are labeled as not specified or presented as questions. A human should review the output before it is used for a client decision.
 
 ## 6. Evaluation plan
-Establish a baseline with representative, approved examples. Review category classification and extracted details for correctness, omissions, and unsupported assumptions. In a pilot, track two or three agreed operational measures, such as time per brief, correction rate, and consultant acceptance. Set target thresholds with the process owner; this report does not invent targets.
+On the 34 synthetic examples, 5-fold cross-validation measured {classifier_metrics['rule_accuracy']:.1%} accuracy for keyword rules and {classifier_metrics['ml_accuracy']:.1%} for TF-IDF + Logistic Regression. This small demonstration set is not representative of production. Review category classification and extracted details on a larger, approved set before drawing conclusions. In a pilot, track two or three agreed operational measures, such as time per brief, correction rate, and consultant acceptance. Set target thresholds with the process owner; this report does not invent targets.
 
 ## 7. Risks and controls
 - Incorrect classification: show the detected category and allow the user to correct context.
@@ -911,10 +925,10 @@ Establish a baseline with representative, approved examples. Review category cla
 2. Agree on approved sample data, privacy controls, baseline measures, and acceptance criteria.
 3. Test the current local prototype with representative synthetic or approved examples and record errors.
 4. Refine extraction rules and report templates; have consultants review every output.
-5. Decide whether a model is needed only after measuring the rules-based baseline; evaluate any future model separately before integration.
+5. Collect a larger, representative, approved dataset and compare the rules and ML classifier before deciding whether the ML component is useful beyond this demonstration.
 
 ## 9. Known limitations
-The prototype does not connect to source systems, retrieve or cite documents, call an AI model, learn from feedback, or provide validated client-specific performance estimates. Its category guides and extraction rules are hand-authored and should be treated as a demonstration.
+The prototype does not connect to source systems, retrieve or cite documents, call a generative AI service, learn from feedback, or provide validated client-specific performance estimates. Its category guides and rules are hand-authored. The comparison classifier is trained on only 34 synthetic examples and must not be treated as production-ready.
 """
 
 
@@ -1063,8 +1077,19 @@ if "analysis" in st.session_state:
         st.session_state.pop("analysis", None)
     else:
         st.header("Opportunity analysis", icon=":material/insights:")
-        st.info("This assessment report is assembled locally from transparent planning rules. No information is sent to an AI service.")
+        st.info("The plan is assembled locally from transparent planning rules. The separate category comparison also runs locally; no information is sent to an AI service.")
         st.caption("Match strength counts category keyword rules in the statement. It is not a probability or calibrated confidence score.")
+        category_model, classifier_metrics = get_category_classifier()
+        rule_category = classify_category_by_rules(result["description"])
+        ml_category, ml_probability = predict_category(category_model, result["description"])
+        rule_column, ml_column = st.columns(2, gap="medium")
+        with rule_column:
+            st.metric("Rule-based category", rule_category or "No category match")
+        with ml_column:
+            st.metric("ML-predicted category", ml_category)
+            st.caption(f"Estimated class probability: {ml_probability:.1%}")
+        st.caption("The ML classifier is trained on only 34 synthetic examples. It is a demonstration, not production-ready; its estimated probability is not a guarantee.")
+        st.caption(f"Measured 5-fold accuracy on those synthetic examples: keyword rules {classifier_metrics['rule_accuracy']:.1%}; ML classifier {classifier_metrics['ml_accuracy']:.1%}.")
         opportunity_tab, validation_tab, technical_tab = st.tabs(["Opportunity report", "MVP & validation", "Technical approach"])
         with opportunity_tab:
             with st.container(border=True):
@@ -1072,12 +1097,12 @@ if "analysis" in st.session_state:
         with validation_tab:
             with st.container(border=True):
                 st.markdown(result.get("assessment_addendum", "Generate the brief again to see MVP and validation recommendations."))
-        technical_report_text = make_technical_report(result)
+        technical_report_text = make_technical_report(result, classifier_metrics)
         with technical_tab:
-            st.markdown("**Prototype flow** · a local, rules-based process with human review")
+            st.markdown("**Prototype flow** · local planning rules with a synthetic-trained category comparison and human review")
             flow_steps = [
                 ("1 · Input", "Problem statement and optional context"),
-                ("2 · Extract", "Explicit details and likely workflow"),
+                ("2 · Classify", "Rules and a small ML model side by side"),
                 ("3 · Draft", "Built-in guide creates a suggested brief"),
                 ("4 · Review", "Person checks and edits recommendations"),
                 ("5 · Export", "Word reports and CSV summary"),
@@ -1099,7 +1124,7 @@ if "analysis" in st.session_state:
             "client": export_client,
             "problem_statement": result["description"],
             "solution_approach": result["solution_approach"],
-            "generated_with": "Built-in local planner (rule-based; no API)",
+            "generated_with": "Built-in local rule-based planner with separate synthetic-trained ML category comparison; no API",
         }])
         with report_col:
             st.download_button("Opportunity report (Word)", report, file_name="cynbit_ai_opportunity_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch")
@@ -1109,5 +1134,5 @@ if "analysis" in st.session_state:
             st.download_button("Summary data (CSV)", table.to_csv(index=False), file_name="cynbit_ai_opportunity_summary.csv", mime="text/csv", icon=":material/download:", width="stretch")
 
 with st.expander("How this prototype works", icon=":material/info:"):
-    st.write("**Prototype pipeline:** problem statement and optional context → extraction of explicitly stated details → local keyword classification of workflow and friction signals → a matching built-in opportunity guide → draft approach, measures, and missing-detail questions → consultant review and Word/CSV export.")
-    st.write("This version is a deterministic baseline, not a trained ML model or language model. It uses no API and makes no external requests. Its outputs are easy to inspect and repeat, but are limited to the categories and rules included in the code.")
+    st.write("**Prototype pipeline:** problem statement and optional context → extraction of explicitly stated details → local rules and a small ML classifier compare workflow categories → a built-in opportunity guide drafts the approach, measures, and missing-detail questions → consultant review and Word/CSV export.")
+    st.write("The solution plan remains deterministic and rules-based. The separate TF-IDF + Logistic Regression category classifier is trained on only 34 synthetic examples and is a demonstration, not production-ready. It uses no API and makes no external requests.")
