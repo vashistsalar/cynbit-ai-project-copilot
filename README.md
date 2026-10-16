@@ -1,67 +1,59 @@
 # Cynbit AI Project Copilot
 
-A beginner-friendly Streamlit prototype for analyzing client requirements and preparing a structured AI opportunity brief. The chosen opportunity is **client requirement analysis and AI opportunity discovery**, which aligns with Cynbit's public positioning in AI automation, custom software, and a discovery-led project lifecycle.
+A beginner-friendly Streamlit app that turns a client problem statement into a practical solution plan using a local rules-based planner.
 
-## What the demo does
+## What it does
 
-- Captures a client problem, affected users, current tools, and constraints.
-- Uses transparent keyword signals plus a small opportunity guide to suggest a pilot.
-- Shows possible success measures, a risk, and a safeguard.
-- Downloads a client brief as Markdown (`.md`) and a one-row summary in CSV.
+- Extracts details explicitly stated in the problem, such as workflow area, affected users, current tools, and constraints.
+- Uses local keyword patterns to identify pain points like repetitive work, delays, errors, and information-search effort.
+- Builds a tailored recommendation, implementation steps, possible success measures, and follow-up questions from built-in guides.
+- Runs locally without sending information to an AI service or requiring an API key.
+- Includes 34 synthetic examples, loaded only when the user clicks **Load example**.
+- Downloads the plan as a Word document or CSV.
 
-This is a rule-based educational prototype, not a trained ML system. Its signal score is not a confidence estimate or business forecast. A human should validate recommendations with the client.
+## Local operation and limits
 
-## Run it in VS Code (Windows)
+The planner makes no API calls and needs no API key or internet connection to generate an approach. It is a transparent rule-based planner, not a large language model. It is less open-ended than a generative AI assistant, but uses the statement and optional context to tailor its built-in plan. It leaves missing client details unspecified and suggests questions to clarify them.
 
-1. Install Python 3.10 or later and VS Code. In VS Code, install the Microsoft Python extension.
-2. Open this project folder in VS Code (`File` → `Open Folder`).
-3. Open **Terminal** → **New Terminal**.
-4. Create and activate a virtual environment:
+## Run in VS Code on Windows
+
+1. Install Python 3.10 or later and the Microsoft Python extension for VS Code.
+2. Open this project folder in VS Code.
+3. In **Terminal** → **New Terminal**, create and activate a virtual environment:
 
    ```powershell
    py -m venv .venv
    .\.venv\Scripts\Activate.ps1
    ```
 
-   If PowerShell blocks activation, use Command Prompt in VS Code and run `.venv\Scripts\activate.bat`.
+   If PowerShell blocks activation, use Command Prompt and run `.venv\Scripts\activate.bat`.
 
-5. Install the app dependencies:
+4. Install the app dependencies:
 
    ```powershell
    python -m pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
-6. Start the app:
+5. Start the app:
 
    ```powershell
    python -m streamlit run app.py
    ```
 
-7. Streamlit opens a browser page, usually at `http://localhost:8501`. Click **Load example**, review the brief and downloads, then try a new client requirement.
+6. Open the local address shown in the terminal, usually `http://localhost:8501`. Enter a problem statement or click **Load example**, then choose **Generate solution approach**.
 
-## Suggested demo scenario
+## Assessment demo
+
+Try this sample problem:
 
 > Our support team receives many repetitive questions each day. Staff search several documents before replying, so response times are slow and answers can be inconsistent.
 
-Select **Customer support**. Explain that the pilot would retrieve from approved FAQs, draft responses, and hand uncertain questions to a human.
-
-## How to present the assessment
-
-1. **Opportunity:** speed up Cynbit's client discovery by structuring incoming requirements and identifying a small AI pilot.
-2. **Prototype:** demonstrate the form and generated opportunity brief.
-3. **Approach:** begin with interviews and a baseline; build a narrow, human-reviewed pilot; evaluate against agreed measures.
-4. **Responsible use:** verify recommendations, use approved data, and retain a human decision-maker.
-5. **Next iteration:** collect labeled examples with consent, evaluate extraction and recommendation quality, then consider an approved LLM or classifier only if it improves measurable outcomes.
+The generated plan should identify customer support, repeated manual work, delays, and information-search effort; propose a small FAQ-based support assistant with human review; suggest measures; and ask about any missing users or data sources.
 
 ## GitHub submission checklist
 
-1. Create a GitHub repository named `cynbit-ai-project-copilot`.
-2. In VS Code, open Source Control, initialize the repository, review the files, and commit with a message such as `Build Cynbit AI Project Copilot prototype`.
-3. Add the GitHub repository as a remote and publish/push the branch using VS Code's **Publish to GitHub** flow.
-4. Confirm the repository has `app.py`, `requirements.txt`, `README.md`, and `.gitignore`, and that no credentials or private client data are included.
-5. Submit the repository link and the downloaded brief according to the assessment instructions before **October 17, 2026**.
-
-## References
-
-- Cynbit Technologies, public website: <https://www.cynbit.in/> (reviewed October 15, 2026). The site describes AI automation, custom software, SaaS products, and discovery/audit as part of its project lifecycle. This project concept is an assessment proposal, not a claim that Cynbit currently has this internal workflow or its performance data.
+1. Create or open the `cynbit-ai-project-copilot` GitHub repository.
+2. In VS Code Source Control, review and commit the project changes.
+3. Push the branch and verify that `app.py`, `requirements.txt`, `README.md`, and `.gitignore` are present.
+4. Submit the repository link and a generated Word report according to the assessment instructions before **October 17, 2026**.
