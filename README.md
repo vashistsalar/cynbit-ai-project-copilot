@@ -16,7 +16,7 @@ A Streamlit assessment prototype for a proposed **client discovery and requireme
 - Starts with blank client context and problem statement fields; sample data appears only after the user clicks **Load example**.
 - Runs locally without sending information to an AI service or requiring an API key.
 - Includes 34 synthetic examples, loaded only when the user clicks **Load example**.
-- Downloads separate opportunity and technical approach reports as Word documents, plus a CSV summary.
+- Downloads a detailed, multi-page opportunity report and a technical approach report as Word documents, plus a CSV summary.
 
 ## Local operation and limits
 

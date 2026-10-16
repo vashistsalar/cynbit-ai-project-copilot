@@ -834,41 +834,107 @@ def load_example() -> None:
     st.session_state.pop("analysis_unrecognized", None)
 
 
-def make_report(result: dict) -> str:
-    client = result["context"].get("client", "")
-    generated_with = "Built-in local planner (rule-based; no API)"
-    return f"""# Cynbit AI Opportunity Brief
+def make_report(result: dict, classifier_metrics: dict[str, float]) -> str:
+    """Build a detailed, assessment-ready opportunity report for the Word export."""
+    context = result["context"]
+    client = context.get("client", "") or "Not specified"
+    category = context.get("category") or "Not specified"
+    guide = OPPORTUNITY_GUIDES.get(category)
+    use_case = guide["use_case"] if guide else "Focused workflow improvement with human review"
+    recommendation = guide["approach"] if guide else (
+        "Map the workflow, identify its slowest or most error-prone step, and test a narrow digital assistant or automation there."
+    )
+    main_risk = guide["risk"] if guide else (
+        "The workflow and its risks need discovery before choosing an automation method."
+    )
+    metrics = guide["metrics"][:4] if guide else ["Time per task", "Errors or rework", "Backlog", "User feedback"]
+    context_lines = "\n".join(
+        f"- **{label}:** {context.get(key) or 'Not specified'}"
+        for label, key in (
+            ("Problem area", "category"),
+            ("Intended users", "users"),
+            ("Current tools or data", "systems"),
+            ("Constraints", "constraints"),
+        )
+    )
+    questions = []
+    if not context.get("users"):
+        questions.append("Who performs this workflow, and who is affected by its outcome?")
+    if not context.get("systems"):
+        questions.append("Which approved documents, tools, or data sources are involved?")
+    if not context.get("constraints"):
+        questions.append("What privacy, security, approval, or automation limits must the pilot follow?")
+    questions.append("What baseline and target should the process owner use to decide whether the pilot succeeds?")
+    question_lines = "\n".join(f"- {question}" for question in questions)
+    example_count = len(EXAMPLE_CASES)
 
-**Client or project:** {client or 'Not specified'}
+    return f"""# Cynbit AI Opportunity Report
+
+**Client or project:** {client}
 **Prepared:** {date.today().isoformat()}
-**Generated with:** {generated_with}
+**Assessment:** AI/ML opportunity identification and prototype
 
-## Assessment opportunity
-Client discovery and requirements analysis copilot. This is a proposal based on Cynbit's public service positioning, not a claim about its current internal workflow.
+## Executive summary
+This report evaluates a client discovery and requirements copilot as an opportunity to explore. It would help a consultant turn discovery notes into a structured first-pass brief, while leaving review and decisions with a person. The opportunity is a hypothesis based on the supplied problem statement and Cynbit's publicly described discovery, AI automation, and custom software positioning. It is not evidence that Cynbit has confirmed this internal need.
 
-## Opportunity rationale
-The proposed workflow turns discovery notes into a structured first-pass brief for a consultant to review. It is a hypothesis for assessment and must be validated with real users before treating it as a confirmed business need.
+The current prototype demonstrates a local, rule-based planning workflow and a separate category-classification comparison. It does not connect to company systems or use a generative AI service. A small pilot should first validate the workflow, source data, safeguards, and success measures with the people who would use it.
 
-## Problem statement
+## Problem statement and context
+**Problem statement supplied:**
 {result['description']}
 
-## Recommended solution and pilot plan
-{result['solution_approach']}
+**Context provided:**
+{context_lines}
 
-## MVP and validation addendum
-{result.get('assessment_addendum', 'No validation addendum is available for this saved result. Generate the brief again to refresh it.')}
+Missing details remain marked as not specified. The report does not infer a client identity, system, constraint, or business result that was not supplied.
 
-## Context provided
-- Problem area: {result['context'].get('category') or 'Not specified'}
-- Intended users: {result['context'].get('users') or 'Not specified'}
-- Current tools or data: {result['context'].get('systems') or 'Not specified'}
-- Constraints: {result['context'].get('constraints') or 'Not specified'}
+## Opportunity selection
+**Selected use case:** {use_case}
 
-## Expected value and evaluation
-Measure the current process first, then compare the pilot on two or three agreed measures such as task time, rework, backlog, or user acceptance. No financial savings or performance improvement is assumed in this report.
+The selected opportunity is a discovery copilot that organizes stated needs, affected users, current tools, constraints, and open questions into a consultant-reviewed brief. It is a practical first candidate for this assessment because the output can be checked by a person and demonstrated without connecting to client data.
 
-## Recommendation
-Run a small, human-reviewed discovery pilot with approved or synthetic information. Confirm the problem, data access, safeguards, and success criteria with the process owner before building or connecting production systems.
+**Other opportunity hypotheses to validate:**
+- A knowledge assistant that retrieves approved answers for repeated support questions and routes uncertain cases to staff.
+- A document-intake assistant that extracts and validates fields from forms or invoices before a reviewer approves them.
+- An internal request-triage assistant that summarizes requests and suggests a team or next action for staff review.
+
+These are candidate ideas, not claims about Cynbit's current operations. Compare them with stakeholder interviews before selecting any for a real deployment. No financial benefit or opportunity ranking is assumed here.
+
+**Public references for the opportunity hypothesis:** Cynbit website (https://www.cynbit.in/) and services page (https://www.cynbit.in/services). Verify current service details and validate this proposal with Cynbit stakeholders before submission or implementation.
+
+[[PAGE_BREAK]]
+
+## Proposed solution approach
+{recommendation}
+
+The app's current plan also identifies friction signals, suggests a human-reviewed pilot, lists possible measures, highlights a guide-specific risk, and raises questions for missing context. These outputs are starting points for discovery, not confirmed requirements.
+
+## How a pilot could work
+1. **Map the workflow:** observe how a discovery note is currently reviewed and turned into a requirements summary. Record handoffs, delays, repeated work, and corrections.
+2. **Agree on inputs:** select a small, approved or synthetic sample. Confirm who owns it and what sensitive fields must be excluded.
+3. **Draft a brief:** use the copilot to structure the problem, stated context, candidate use case, safeguards, and unanswered questions.
+4. **Review with a person:** have a consultant verify every extracted detail and recommendation before sharing or acting on the brief.
+5. **Compare and decide:** review feedback and agreed measures against the baseline. Refine, stop, or expand only after the process owner approves the evidence.
+
+## Minimum viable pilot and validation
+Start with a narrow workflow and a small reviewer group. The first version should accept a problem statement, extract only explicitly stated details, mark missing information, produce an editable brief, and export it for discussion. Keep client decisions and consequential actions under human control.
+
+**Suggested measures:** choose two or three with the process owner from {", ".join(metrics)}. Record the existing baseline first, define how each measure will be collected, and agree a target before the pilot. This report does not claim time savings, accuracy improvement, or financial return.
+
+**Checks before expanding:** verify that the brief does not add unstated facts; check category and context extraction; confirm reviewers can correct the result; and record omissions, unsupported suggestions, and user feedback. The built-in examples are synthetic test scenarios, not client evidence.
+
+## Risks, safeguards, and open questions
+**Main risk to manage:** {main_risk}
+
+Also confirm that approved data is used, access is limited to the intended reviewers, retention rules are understood, and uncertain or sensitive cases are escalated. Keep a clear correction path and do not automate irreversible decisions in the first pilot.
+
+**Questions to resolve with stakeholders:**
+{question_lines}
+
+## Prototype evidence and limitations
+The solution approach is generated by local keyword rules and fixed opportunity guides. A separate TF-IDF + Logistic Regression model predicts a category; it does not generate the plan. Stratified five-fold cross-validation on {example_count} synthetic examples measured **{classifier_metrics['rule_accuracy']:.1%}** accuracy for the keyword rules and **{classifier_metrics['ml_accuracy']:.1%}** for the ML classifier. This small synthetic set is a demonstration, not production evidence, and the ML classifier should not be treated as production-ready.
+
+The prototype has no client-system integration, generative AI service, or validated client-specific impact estimate. The recommended next step is stakeholder discovery and a controlled pilot proposal, not a production rollout.
 """
 
 
@@ -952,7 +1018,9 @@ def markdown_to_docx(markdown: str) -> bytes:
         line = raw_line.strip()
         if not line:
             continue
-        if line.startswith("# "):
+        if line == "[[PAGE_BREAK]]":
+            paragraphs.append('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+        elif line.startswith("# "):
             paragraphs.append(paragraph(line[2:].strip().rstrip(":"), "Title"))
         elif line.startswith("## "):
             heading = re.sub(r"^\d+\.\s*", "", line[3:]).strip().rstrip(":")
@@ -1118,7 +1186,7 @@ if "analysis" in st.session_state:
         st.subheader("Assessment downloads")
         report_col, technical_col, summary_col = st.columns(3, gap="medium")
         export_client = result["context"].get("client", "")
-        report = markdown_to_docx(make_report(result))
+        report = markdown_to_docx(make_report(result, classifier_metrics))
         technical_report = markdown_to_docx(technical_report_text)
         table = pd.DataFrame([{
             "client": export_client,
