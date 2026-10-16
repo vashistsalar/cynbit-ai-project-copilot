@@ -409,6 +409,69 @@ OPPORTUNITY_GUIDES = {
     },
 }
 
+# Each matched pattern counts as one rule for the app's qualitative match label.
+# The label is a rule-match count, not a probability or calibrated confidence.
+CATEGORY_KEYWORD_RULES = {
+    "Customer support": [
+        r"\bcustomer support\b", r"\bsupport team\b", r"\bcustomer service\b",
+        r"\bhelp desk\b", r"\bservice desk\b", r"\bsupport tickets?\b",
+        r"\bFAQs?\b", r"\bhelp center\b", r"\bhelp articles?\b",
+        r"\b(?:booking|itinerary|appointment|clinic hours|repair questions?|return rules?|visitor services)\b",
+        r"\bvisitors?\b",
+    ],
+    "Sales and lead management": [
+        r"\bsales\b", r"\bleads?\b", r"\bprospects?\b", r"\benquir(?:y|ies)\b",
+        r"\bfollow[- ]?ups?\b", r"\bquotes?\b", r"\bmembership\b",
+        r"\bCRM\b", r"\bpipeline\b", r"\baccount managers?\b",
+        r"\b(?:sales representatives?|business development|reps)\b",
+    ],
+    "Document processing": [
+        r"\binvoices?\b", r"\bPDFs?\b", r"\bforms?\b", r"\bdocuments?\b",
+        r"\bOCR\b", r"\bdata entry\b", r"\bextract(?:ion|ing)?\b",
+        r"\bscanned\b", r"\battachments?\b", r"\btranscription errors?\b",
+        r"\bclaim forms?\b", r"\binspection sheets?\b",
+    ],
+    "Internal workflow": [
+        r"\binternal workflow\b", r"\bapproval\b", r"\btask routing\b", r"\bworkflow\b",
+        r"\bwork orders?\b", r"\brequests?\b", r"\bschedules?\b", r"\btriage\b",
+        r"\bmaintenance\b", r"\b(?:assign|assigned|assignment|route|routed|routing)\b",
+        r"\bbug reports?\b", r"\bpolicy questions?\b", r"\boperations\b",
+    ],
+    "Product or service idea": [
+        r"\bnew product\b", r"\bproduct idea\b", r"\bproduct feature\b", r"\bproduct concept\b",
+        r"\bprototype\b", r"\bspending patterns\b", r"\bspeaking practice\b",
+        r"\bplant[- ]care\b", r"\bcare instructions?\b", r"\bguided product\b",
+        r"\bwant to (?:explore|test|prototype|build)\b", r"\bfeature that\b",
+    ],
+}
+
+
+def count_category_keyword_matches(text: str, category: str | None) -> int:
+    """Count distinct keyword rules matched for one selected category."""
+    if not category:
+        return 0
+    return sum(bool(re.search(rule, text, re.IGNORECASE)) for rule in CATEGORY_KEYWORD_RULES.get(category, []))
+
+
+def classify_category_by_rules(text: str) -> str | None:
+    """Return the category with the most matching rules, or None if there is no match."""
+    scores = {category: count_category_keyword_matches(text, category) for category in CATEGORY_KEYWORD_RULES}
+    category = max(scores, key=scores.get)
+    return category if scores[category] else None
+
+
+def is_specific_tool_source(source: str) -> bool:
+    """Only treat named applications or concrete system types as a test source."""
+    specific_sources = (
+        r"\bCRM\b", r"\bshared inbox\b", r"\bJira(?: Service Management)?\b",
+        r"\bGoogle Sheets\b", r"\bMicrosoft Excel\b", r"\bExcel\b",
+        r"\bSalesforce\b", r"\bHubSpot\b", r"\bFreshdesk\b", r"\bZendesk\b",
+        r"\bServiceNow\b", r"\bOutlook\b", r"\bGmail\b", r"\bSharePoint\b",
+        r"\bConfluence\b", r"\bQuickBooks\b", r"\bXero\b", r"\bSAP\b",
+        r"\bOracle\b", r"\bDynamics 365\b",
+    )
+    return any(re.search(rule, source, re.IGNORECASE) for rule in specific_sources)
+
 # Synthetic scenarios for the explicit Load example action (not used as initial values).
 # Tuple fields: client, category, users, tools/data, constraints, problem statement.
 EXAMPLE_CASES = [
@@ -481,17 +544,7 @@ def extract_client_context(text: str) -> dict:
         if user_match:
             context["users"] = user_match.group(1).strip()
 
-    category_rules = [
-        ("Customer support", r"\b(customer support|support team|support ticket|customer service|help desk|FAQ|customer questions)\b"),
-        ("Sales and lead management", r"\b(sales|lead|prospect|sales pipeline|CRM pipeline)\b"),
-        ("Document processing", r"\b(invoice|document processing|data entry|OCR|form extraction|extract(?:ing)? data from documents)\b"),
-        ("Internal workflow", r"\b(internal workflow|approval workflow|task routing|workflow|work order)\b"),
-        ("Product or service idea", r"\b(new product|product idea|product feature|product concept)\b"),
-    ]
-    for label, pattern in category_rules:
-        if re.search(pattern, text, re.IGNORECASE):
-            context["category"] = label
-            break
+    context["category"] = classify_category_by_rules(text)
 
     source_match = re.search(
         r"\b(?:current(?:ly)?\s+(?:tools?|systems?|data sources?)|tools?|systems?|data sources?)\s*[:=-]\s*([^.;!?\n]+)",
@@ -524,9 +577,9 @@ def extract_client_context(text: str) -> dict:
     return context
 
 
-def generate_local_solution_approach(text: str, context: dict) -> str:
+def generate_local_solution_approach(text: str, context: dict) -> str | None:
     """Build a tailored solution plan from local rules and the supplied context."""
-    category = context.get("category") or extract_client_context(text)["category"]
+    category = context.get("category") or classify_category_by_rules(text)
     guide = OPPORTUNITY_GUIDES.get(category)
     statement = re.sub(r"\s+", " ", text).strip()
     lower_text = statement.lower()
@@ -535,7 +588,7 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
     signal_rules = [
         (r"\b(manual(?:ly)?|repetitive|repeated|again and again|copy(?:ing)?|re-enter)\b", "repeated manual work"),
         (r"\b(delay(?:ed|s)?|slow|wait(?:ing)?|backlog|takes? too long|late)\b", "delays or a growing backlog"),
-        (r"\b(error|mistake|inconsistent|duplicate|miss(?:ed|ing)|incorrect)\b", "errors, inconsistency, or missed work"),
+        (r"\b(errors?|mistakes?|inconsistent|duplicates?|miss(?:ed|ing)|incorrect)\b", "errors or missed work"),
         (r"\b(search|find|look(?:ing)? up|hunt(?:ing)?)\b", "time spent finding information"),
         (r"\b(overwhelmed|high volume|too many|large number|busy periods?)\b", "high or uneven workload"),
     ]
@@ -543,18 +596,20 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
         if re.search(pattern, lower_text):
             signals.append(signal)
 
+    if not category and not signals:
+        return None
+
     if not guide:
-        # Fall back to a broad local classification when the user leaves the
-        # category field blank. These rules use only terms in the statement.
-        fallback_rules = [
-            ("Customer support", r"\b(customer|support|ticket|FAQ|help desk|questions?)\b"),
-            ("Sales and lead management", r"\b(sales|lead|prospect|enquir(?:y|ies)|follow-up)\b"),
-            ("Document processing", r"\b(invoice|PDF|form|document|spreadsheet|data entry|extract)\b"),
-            ("Internal workflow", r"\b(workflow|approval|routing|request|work order|schedule|triage)\b"),
-            ("Product or service idea", r"\b(product|feature|prototype|customers want|we want to build)\b"),
-        ]
-        category = next((name for name, pattern in fallback_rules if re.search(pattern, lower_text)), None)
+        category = classify_category_by_rules(lower_text)
         guide = OPPORTUNITY_GUIDES.get(category)
+
+    category_match_count = count_category_keyword_matches(statement, category)
+    if category_match_count >= 3:
+        match_strength = "High"
+    elif category_match_count == 2:
+        match_strength = "Medium"
+    else:
+        match_strength = "Low"
 
     if guide:
         recommendation = guide["approach"]
@@ -569,7 +624,14 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
         category_line = "I could not confidently match this to one of the built-in workflow types, so the plan starts with discovery."
 
     if signals:
-        friction_line = "The friction signals I found are " + ", ".join(signals[:3]) + "."
+        found_signals = signals[:3]
+        if len(found_signals) == 1:
+            joined_signals = found_signals[0]
+        elif len(found_signals) == 2:
+            joined_signals = " and ".join(found_signals)
+        else:
+            joined_signals = ", ".join(found_signals[:-1]) + ", and " + found_signals[-1]
+        friction_line = "The friction signals I found are " + joined_signals + "."
     else:
         friction_line = "The exact source of the difficulty is not yet clear from the description."
 
@@ -588,7 +650,7 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
         first_step = "Write down the current steps and identify the one step that causes the most delay, repetition, or rework."
 
     source = context.get("systems")
-    if source:
+    if source and is_specific_tool_source(source):
         source_step = f"Use **{source}** as the first test source, and verify a small sample with the people who know it."
     else:
         source_step = "Identify which documents, systems, or records contain the information needed; this was not specified."
@@ -600,6 +662,8 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
         safety_step = "Keep a person reviewing important outputs. Do not automate payments, access changes, customer promises, or other irreversible decisions in the first pilot."
 
     pilot_group = context.get("users") or "a small group of intended users"
+    if not re.match(r"^(?:the|a|an|our|my|your|their|his|her|this|these|those)\b", pilot_group, re.IGNORECASE):
+        pilot_group = "the " + pilot_group
     steps = [
         first_step,
         source_step,
@@ -619,14 +683,15 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
     opportunity = guide["use_case"] if guide else "A focused workflow improvement opportunity"
     data_note = (
         f"Start with a small, approved sample from **{source}**; confirm access, quality, ownership, and retention before use."
-        if source
+        if source and is_specific_tool_source(source)
         else "The data source was not specified. Confirm which approved records or documents can be used before selecting any data."
     )
     risk_note = guide["risk"] if guide else "The workflow and risks need discovery before choosing an automation method."
 
     answer_parts = [
         "**What I understood**\n" + category_line + " " + friction_line,
-        "**Opportunity to explore**\n" + opportunity + ". Treat this as a hypothesis to validate with the affected users, not a confirmed client requirement.",
+        f"**Match strength:** {match_strength} ({category_match_count} category keyword rule{'s' if category_match_count != 1 else ''} matched).",
+        "**Suggested use case**\n" + opportunity + ". Treat this as a hypothesis to validate with the affected users, not a confirmed client requirement.",
         "**Recommended direction**\n" + recommendation,
         "**How the proposed workflow could work**\n"
         "1. A staff member provides a request or selects an approved source.\n"
@@ -635,7 +700,7 @@ def generate_local_solution_approach(text: str, context: dict) -> str:
         "4. A person checks, edits, and approves the result before it affects a customer or business record.",
         "**Practical pilot plan**\n" + "\n".join(f"{index}. {step}" for index, step in enumerate(steps, start=1)),
         "**Data and safeguards**\n" + data_note + " " + safety_step + " Follow the client's privacy, access, and retention rules; do not use personal or confidential data without approval.",
-        "**Risks to validate**\n" + risk_note + " Check for incorrect or incomplete suggestions, and keep an easy human correction and escalation path.",
+        "**Main risk to manage**\n" + risk_note + " Check for incorrect or incomplete suggestions, and keep an easy human correction and escalation path.",
         "**What to measure**\nChoose two or three: " + ", ".join(metrics[:4]) + ".",
         "Set a baseline before the pilot and agree target improvements with the process owner; this prototype does not invent performance targets.",
     ]
@@ -714,6 +779,7 @@ No client workflow, system access, data permission, or performance target is ass
 def analyze_requirements() -> None:
     st.session_state.pop("example_status", None)
     st.session_state.pop("analysis_error", None)
+    st.session_state.pop("analysis_unrecognized", None)
     text = st.session_state.get("problem", "").strip()
     st.session_state.pop("analysis", None)
     if not text:
@@ -751,9 +817,11 @@ def load_example() -> None:
     st.session_state["analysis_stale"] = False
     st.session_state.pop("analysis", None)
     st.session_state.pop("analysis_error", None)
+    st.session_state.pop("analysis_unrecognized", None)
 
 
-def make_report(client: str, result: dict) -> str:
+def make_report(result: dict) -> str:
+    client = result["context"].get("client", "")
     generated_with = "Built-in local planner (rule-based; no API)"
     return f"""# Cynbit AI Opportunity Brief
 
@@ -968,16 +1036,22 @@ if st.session_state.pop("analysis_requested", False):
             text = st.session_state.get("problem", "").strip()
             context = st.session_state.get("submitted_context", {})
             answer = generate_local_solution_approach(text, context)
-        st.session_state["analysis"] = {
-            "description": text,
-            "solution_approach": answer,
-            "assessment_addendum": generate_assessment_addendum(text, context),
-            "context": context,
-        }
-        st.session_state["analysis_stale"] = False
+        if answer is None:
+            st.session_state["analysis_unrecognized"] = True
+            st.session_state.pop("analysis", None)
+        else:
+            st.session_state["analysis"] = {
+                "description": text,
+                "solution_approach": answer,
+                "assessment_addendum": generate_assessment_addendum(text, context),
+                "context": context,
+            }
+            st.session_state["analysis_stale"] = False
     except Exception as exc:
         st.session_state["analysis_error"] = f"The local planner could not build an approach: {exc}"
 
+if st.session_state.get("analysis_unrecognized"):
+    st.warning("I couldn't recognize this problem type. Try adding details such as who is affected, what is slow, and which tools are used.")
 if st.session_state.get("analysis_error"):
     st.error(f"Could not generate the opportunity brief: {st.session_state['analysis_error']}")
 if st.session_state.get("analysis_stale"):
@@ -990,6 +1064,7 @@ if "analysis" in st.session_state:
     else:
         st.header("Opportunity analysis", icon=":material/insights:")
         st.info("This assessment report is assembled locally from transparent planning rules. No information is sent to an AI service.")
+        st.caption("Match strength counts category keyword rules in the statement. It is not a probability or calibrated confidence score.")
         opportunity_tab, validation_tab, technical_tab = st.tabs(["Opportunity report", "MVP & validation", "Technical approach"])
         with opportunity_tab:
             with st.container(border=True):
@@ -1017,10 +1092,11 @@ if "analysis" in st.session_state:
                 st.markdown(technical_report_text)
         st.subheader("Assessment downloads")
         report_col, technical_col, summary_col = st.columns(3, gap="medium")
-        report = markdown_to_docx(make_report(client, result))
+        export_client = result["context"].get("client", "")
+        report = markdown_to_docx(make_report(result))
         technical_report = markdown_to_docx(technical_report_text)
         table = pd.DataFrame([{
-            "client": client,
+            "client": export_client,
             "problem_statement": result["description"],
             "solution_approach": result["solution_approach"],
             "generated_with": "Built-in local planner (rule-based; no API)",
