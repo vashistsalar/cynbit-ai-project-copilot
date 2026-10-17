@@ -791,7 +791,7 @@ No client workflow, system access, data permission, or performance target is ass
 
 
 def prepare_chat_prompt() -> None:
-    """Capture chat input and extract its context before sidebar widgets render."""
+    """Capture the draft and extract its context before rendering the reply."""
     text = st.session_state.get("chat_prompt", "").strip()
     if not text:
         return
@@ -811,6 +811,7 @@ def prepare_chat_prompt() -> None:
     }
     st.session_state["last_analysis_input"] = text
     st.session_state["analysis_stale"] = False
+    st.session_state["pending_chat_prompt"] = text
 
 
 def refresh_analysis_from_context() -> None:
@@ -822,16 +823,16 @@ def load_example() -> None:
     example_index = (st.session_state.get("example_index", -1) + 1) % len(EXAMPLE_CASES)
     sample = dict(zip(("client", "category", "users", "systems", "constraints", "problem"), EXAMPLE_CASES[example_index]))
     st.session_state["example_index"] = example_index
-    st.session_state["example_status"] = f"Loaded example {example_index + 1} of {len(EXAMPLE_CASES)} · {sample['client']}"
+    st.session_state["example_status"] = f"Example {example_index + 1} of {len(EXAMPLE_CASES)} loaded · review it in the message box, then press Send."
     for key, value in sample.items():
-        st.session_state[key] = value
+        if key != "problem":
+            st.session_state[key] = value
+    st.session_state["chat_prompt"] = sample["problem"]
     st.session_state["last_analysis_input"] = sample["problem"]
     st.session_state["submitted_context"] = {
         key: sample[key] for key in ("client", "category", "users", "systems", "constraints")
     }
-    st.session_state["pending_example_prompt"] = sample["problem"]
-    st.session_state["analysis_stale"] = False
-    st.session_state.pop("analysis", None)
+    st.session_state["analysis_stale"] = "analysis" in st.session_state
     st.session_state.pop("analysis_error", None)
     st.session_state.pop("analysis_unrecognized", None)
 
@@ -1171,7 +1172,6 @@ with st.expander("How this prototype works", icon=":material/info:"):
     st.write("**Prototype pipeline:** problem statement and optional context → extraction of explicitly stated details → local rules and a small ML classifier compare workflow categories → a built-in opportunity guide drafts the approach, measures, and missing-detail questions → consultant review and Word/CSV export.")
     st.write("The solution plan remains deterministic and rules-based. The separate TF-IDF + Logistic Regression category classifier is trained on only 34 synthetic examples and is a demonstration, not production-ready. It uses no API and makes no external requests.")
 
-st.button("Load example", icon=":material/quick_reference:", on_click=load_example)
 if "example_status" in st.session_state:
     st.caption(st.session_state["example_status"])
 st.caption("Private by design: your problem statement stays in this app and is not sent to an AI service.")
@@ -1194,14 +1194,35 @@ for message_index, message in enumerate(st.session_state["chat_messages"]):
                 show_details=message_index == len(st.session_state["chat_messages"]) - 1,
             )
 
-chat_prompt = st.chat_input(
-    "Describe the client's challenge...",
-    key="chat_prompt",
-    on_submit=prepare_chat_prompt,
-    submit_mode="disable",
-)
-example_prompt = st.session_state.pop("pending_example_prompt", None)
-submitted_prompt = example_prompt or chat_prompt
+with st.bottom():
+    input_column, example_column = st.columns([5.2, 1.35], vertical_alignment="bottom")
+    with input_column:
+        with st.form("chat_composer", clear_on_submit=True, border=False):
+            text_column, send_column = st.columns([5.5, 1], vertical_alignment="bottom")
+            with text_column:
+                st.text_area(
+                    "Message",
+                    key="chat_prompt",
+                    placeholder="Describe the client's challenge...",
+                    height=74,
+                    label_visibility="collapsed",
+                )
+            with send_column:
+                st.form_submit_button(
+                    "Send",
+                    icon=":material/arrow_upward:",
+                    type="primary",
+                    on_click=prepare_chat_prompt,
+                    use_container_width=True,
+                )
+    with example_column:
+        st.button(
+            "Load example",
+            icon=":material/quick_reference:",
+            on_click=load_example,
+            use_container_width=True,
+        )
+submitted_prompt = st.session_state.pop("pending_chat_prompt", None)
 
 if submitted_prompt:
     text = submitted_prompt.strip()
