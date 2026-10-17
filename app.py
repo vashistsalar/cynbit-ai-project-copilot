@@ -1194,7 +1194,7 @@ for message_index, message in enumerate(st.session_state["chat_messages"]):
                 show_details=message_index == len(st.session_state["chat_messages"]) - 1,
             )
 
-with st.bottom():
+with st.bottom:
     input_column, example_column = st.columns([5.2, 1.35], vertical_alignment="bottom")
     with input_column:
         with st.form("chat_composer", clear_on_submit=True, border=False):
