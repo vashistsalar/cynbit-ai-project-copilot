@@ -1095,6 +1095,10 @@ with st.sidebar:
     st.caption("Appearance")
     st.radio("Theme", ["Dark", "Light"], horizontal=True, key="theme_mode", label_visibility="collapsed")
 
+# Reserve the first main-page slot for the generated brief so it appears
+# above the challenge form after the user submits.
+analysis_area = st.container()
+
 with st.container():
     st.html('<h3 class="challenge-title">Define the challenge</h3>')
     st.caption("Describe the client's current workflow, where it gets stuck, and what a better outcome looks like.")
@@ -1112,94 +1116,95 @@ else:
     st.caption(f"Load example cycles through {len(EXAMPLE_CASES)} synthetic scenarios.")
 st.caption("Private by design: your problem statement stays in this app and is not sent to an AI service.")
 
-if st.session_state.pop("analysis_requested", False):
-    try:
-        with st.spinner("Structuring the discovery brief locally..."):
-            text = st.session_state.get("problem", "").strip()
-            context = st.session_state.get("submitted_context", {})
-            answer = generate_local_solution_approach(text, context)
-        if answer is None:
-            st.session_state["analysis_unrecognized"] = True
+with analysis_area:
+    if st.session_state.pop("analysis_requested", False):
+        try:
+            with st.spinner("Structuring the discovery brief locally..."):
+                text = st.session_state.get("problem", "").strip()
+                context = st.session_state.get("submitted_context", {})
+                answer = generate_local_solution_approach(text, context)
+            if answer is None:
+                st.session_state["analysis_unrecognized"] = True
+                st.session_state.pop("analysis", None)
+            else:
+                st.session_state["analysis"] = {
+                    "description": text,
+                    "solution_approach": answer,
+                    "assessment_addendum": generate_assessment_addendum(text, context),
+                    "context": context,
+                }
+                st.session_state["analysis_stale"] = False
+        except Exception as exc:
+            st.session_state["analysis_error"] = f"The local planner could not build an approach: {exc}"
+
+    if st.session_state.get("analysis_unrecognized"):
+        st.warning("I couldn't recognize this problem type. Try adding details such as who is affected, what is slow, and which tools are used.")
+    if st.session_state.get("analysis_error"):
+        st.error(f"Could not generate the opportunity brief: {st.session_state['analysis_error']}")
+    if st.session_state.get("analysis_stale"):
+        st.info("Your problem statement or context changed. Generate the opportunity brief again to update it.")
+
+    if "analysis" in st.session_state:
+        result = st.session_state["analysis"]
+        if "solution_approach" not in result:
             st.session_state.pop("analysis", None)
         else:
-            st.session_state["analysis"] = {
-                "description": text,
-                "solution_approach": answer,
-                "assessment_addendum": generate_assessment_addendum(text, context),
-                "context": context,
-            }
-            st.session_state["analysis_stale"] = False
-    except Exception as exc:
-        st.session_state["analysis_error"] = f"The local planner could not build an approach: {exc}"
-
-if st.session_state.get("analysis_unrecognized"):
-    st.warning("I couldn't recognize this problem type. Try adding details such as who is affected, what is slow, and which tools are used.")
-if st.session_state.get("analysis_error"):
-    st.error(f"Could not generate the opportunity brief: {st.session_state['analysis_error']}")
-if st.session_state.get("analysis_stale"):
-    st.info("Your problem statement or context changed. Generate the opportunity brief again to update it.")
-
-if "analysis" in st.session_state:
-    result = st.session_state["analysis"]
-    if "solution_approach" not in result:
-        st.session_state.pop("analysis", None)
-    else:
-        st.header("Opportunity analysis", icon=":material/insights:")
-        st.info("The plan is assembled locally from transparent planning rules. The separate category comparison also runs locally; no information is sent to an AI service.")
-        st.caption("Match strength counts category keyword rules in the statement. It is not a probability or calibrated confidence score.")
-        category_model, classifier_metrics = get_category_classifier()
-        rule_category = classify_category_by_rules(result["description"])
-        ml_category, ml_probability = predict_category(category_model, result["description"])
-        rule_column, ml_column = st.columns(2, gap="medium")
-        with rule_column:
-            st.metric("Rule-based category", rule_category or "No category match")
-        with ml_column:
-            st.metric("ML-predicted category", ml_category)
-            st.caption(f"Estimated class probability: {ml_probability:.1%}")
-        st.caption("The ML classifier is trained on only 34 synthetic examples. It is a demonstration, not production-ready; its estimated probability is not a guarantee.")
-        st.caption(f"Measured 5-fold accuracy on those synthetic examples: keyword rules {classifier_metrics['rule_accuracy']:.1%}; ML classifier {classifier_metrics['ml_accuracy']:.1%}.")
-        opportunity_tab, validation_tab, technical_tab = st.tabs(["Opportunity report", "MVP & validation", "Technical approach"])
-        with opportunity_tab:
-            with st.container(border=True):
-                st.markdown(result["solution_approach"])
-        with validation_tab:
-            with st.container(border=True):
-                st.markdown(result.get("assessment_addendum", "Generate the brief again to see MVP and validation recommendations."))
-        technical_report_text = make_technical_report(result, classifier_metrics)
-        with technical_tab:
-            st.markdown("**Prototype flow** · local planning rules with a synthetic-trained category comparison and human review")
-            flow_steps = [
-                ("1 · Input", "Problem statement and optional context"),
-                ("2 · Classify", "Rules and a small ML model side by side"),
-                ("3 · Draft", "Built-in guide creates a suggested brief"),
-                ("4 · Review", "Person checks and edits recommendations"),
-                ("5 · Export", "Word reports and CSV summary"),
-            ]
-            flow_columns = st.columns(len(flow_steps), gap="small")
-            for flow_column, (flow_title, flow_copy) in zip(flow_columns, flow_steps):
-                with flow_column:
-                    with st.container(border=True):
-                        st.markdown(f"**{flow_title}**")
-                        st.caption(flow_copy)
-            with st.container(border=True):
-                st.markdown(technical_report_text)
-        st.subheader("Assessment downloads")
-        report_col, technical_col, summary_col = st.columns(3, gap="medium")
-        export_client = result["context"].get("client", "")
-        report = markdown_to_docx(make_report(result, classifier_metrics))
-        technical_report = markdown_to_docx(technical_report_text)
-        table = pd.DataFrame([{
-            "client": export_client,
-            "problem_statement": result["description"],
-            "solution_approach": result["solution_approach"],
-            "generated_with": "Built-in local rule-based planner with separate synthetic-trained ML category comparison; no API",
-        }])
-        with report_col:
-            st.download_button("Opportunity report (Word)", report, file_name="cynbit_ai_opportunity_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch")
-        with technical_col:
-            st.download_button("Technical approach (Word)", technical_report, file_name="cynbit_ai_technical_approach.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/build:", width="stretch")
-        with summary_col:
-            st.download_button("Summary data (CSV)", table.to_csv(index=False), file_name="cynbit_ai_opportunity_summary.csv", mime="text/csv", icon=":material/download:", width="stretch")
+            st.header("Opportunity analysis", icon=":material/insights:")
+            st.info("The plan is assembled locally from transparent planning rules. The separate category comparison also runs locally; no information is sent to an AI service.")
+            st.caption("Match strength counts category keyword rules in the statement. It is not a probability or calibrated confidence score.")
+            category_model, classifier_metrics = get_category_classifier()
+            rule_category = classify_category_by_rules(result["description"])
+            ml_category, ml_probability = predict_category(category_model, result["description"])
+            rule_column, ml_column = st.columns(2, gap="medium")
+            with rule_column:
+                st.metric("Rule-based category", rule_category or "No category match")
+            with ml_column:
+                st.metric("ML-predicted category", ml_category)
+                st.caption(f"Estimated class probability: {ml_probability:.1%}")
+            st.caption("The ML classifier is trained on only 34 synthetic examples. It is a demonstration, not production-ready; its estimated probability is not a guarantee.")
+            st.caption(f"Measured 5-fold accuracy on those synthetic examples: keyword rules {classifier_metrics['rule_accuracy']:.1%}; ML classifier {classifier_metrics['ml_accuracy']:.1%}.")
+            opportunity_tab, validation_tab, technical_tab = st.tabs(["Opportunity report", "MVP & validation", "Technical approach"])
+            with opportunity_tab:
+                with st.container(border=True):
+                    st.markdown(result["solution_approach"])
+            with validation_tab:
+                with st.container(border=True):
+                    st.markdown(result.get("assessment_addendum", "Generate the brief again to see MVP and validation recommendations."))
+            technical_report_text = make_technical_report(result, classifier_metrics)
+            with technical_tab:
+                st.markdown("**Prototype flow** · local planning rules with a synthetic-trained category comparison and human review")
+                flow_steps = [
+                    ("1 · Input", "Problem statement and optional context"),
+                    ("2 · Classify", "Rules and a small ML model side by side"),
+                    ("3 · Draft", "Built-in guide creates a suggested brief"),
+                    ("4 · Review", "Person checks and edits recommendations"),
+                    ("5 · Export", "Word reports and CSV summary"),
+                ]
+                flow_columns = st.columns(len(flow_steps), gap="small")
+                for flow_column, (flow_title, flow_copy) in zip(flow_columns, flow_steps):
+                    with flow_column:
+                        with st.container(border=True):
+                            st.markdown(f"**{flow_title}**")
+                            st.caption(flow_copy)
+                with st.container(border=True):
+                    st.markdown(technical_report_text)
+            st.subheader("Assessment downloads")
+            report_col, technical_col, summary_col = st.columns(3, gap="medium")
+            export_client = result["context"].get("client", "")
+            report = markdown_to_docx(make_report(result, classifier_metrics))
+            technical_report = markdown_to_docx(technical_report_text)
+            table = pd.DataFrame([{
+                "client": export_client,
+                "problem_statement": result["description"],
+                "solution_approach": result["solution_approach"],
+                "generated_with": "Built-in local rule-based planner with separate synthetic-trained ML category comparison; no API",
+            }])
+            with report_col:
+                st.download_button("Opportunity report (Word)", report, file_name="cynbit_ai_opportunity_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch")
+            with technical_col:
+                st.download_button("Technical approach (Word)", technical_report, file_name="cynbit_ai_technical_approach.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/build:", width="stretch")
+            with summary_col:
+                st.download_button("Summary data (CSV)", table.to_csv(index=False), file_name="cynbit_ai_opportunity_summary.csv", mime="text/csv", icon=":material/download:", width="stretch")
 
 with st.expander("How this prototype works", icon=":material/info:"):
     st.write("**Prototype pipeline:** problem statement and optional context → extraction of explicitly stated details → local rules and a small ML classifier compare workflow categories → a built-in opportunity guide drafts the approach, measures, and missing-detail questions → consultant review and Word/CSV export.")
