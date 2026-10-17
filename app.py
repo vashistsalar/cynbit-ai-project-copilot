@@ -790,28 +790,27 @@ No client workflow, system access, data permission, or performance target is ass
 """ + "\n".join(f"- {question}" for question in questions)
 
 
-def analyze_requirements() -> None:
+def prepare_chat_prompt() -> None:
+    """Capture chat input and extract its context before sidebar widgets render."""
+    text = st.session_state.get("chat_prompt", "").strip()
+    if not text:
+        return
+
     st.session_state.pop("example_status", None)
     st.session_state.pop("analysis_error", None)
     st.session_state.pop("analysis_unrecognized", None)
-    text = st.session_state.get("problem", "").strip()
-    st.session_state.pop("analysis", None)
-    if not text:
-        st.session_state["analysis_error"] = "Enter a problem statement first."
-        st.session_state["analysis_requested"] = False
-        return
-
-    previous_problem = st.session_state.get("last_analysis_input")
-    if text != previous_problem:
+    st.session_state["problem"] = text
+    if text != st.session_state.get("last_analysis_input"):
         extracted = extract_client_context(text)
         for key in ("client", "category", "users", "systems", "constraints"):
             st.session_state[key] = extracted[key]
 
-    context = {key: st.session_state.get(key, "") for key in ("client", "category", "users", "systems", "constraints")}
-    st.session_state["submitted_context"] = context
+    st.session_state["submitted_context"] = {
+        key: st.session_state.get(key, "")
+        for key in ("client", "category", "users", "systems", "constraints")
+    }
     st.session_state["last_analysis_input"] = text
     st.session_state["analysis_stale"] = False
-    st.session_state["analysis_requested"] = True
 
 
 def refresh_analysis_from_context() -> None:
@@ -827,11 +826,80 @@ def load_example() -> None:
     for key, value in sample.items():
         st.session_state[key] = value
     st.session_state["last_analysis_input"] = sample["problem"]
-    st.session_state["analysis_requested"] = False
+    st.session_state["submitted_context"] = {
+        key: sample[key] for key in ("client", "category", "users", "systems", "constraints")
+    }
+    st.session_state["pending_example_prompt"] = sample["problem"]
     st.session_state["analysis_stale"] = False
     st.session_state.pop("analysis", None)
     st.session_state.pop("analysis_error", None)
     st.session_state.pop("analysis_unrecognized", None)
+
+
+def render_chat_assistant(message: dict, message_index: int, show_details: bool) -> None:
+    """Render one assistant turn and keep secondary assessment material tucked away."""
+    if message.get("error"):
+        st.warning(message["content"])
+        return
+
+    st.markdown(message["content"])
+    if not show_details or "result" not in message:
+        return
+
+    result = message["result"]
+    metrics = message["classifier_metrics"]
+    st.caption("This plan is generated locally from rules and built-in guides. Review it before using it with a client.")
+    with st.expander("Category comparison, validation and downloads"):
+        category_model, _ = get_category_classifier()
+        rule_category = classify_category_by_rules(result["description"])
+        ml_category, ml_probability = predict_category(category_model, result["description"])
+        rule_column, ml_column = st.columns(2, gap="medium")
+        with rule_column:
+            st.metric("Rule-based category", rule_category or "No category match")
+        with ml_column:
+            st.metric("ML-predicted category", ml_category)
+            st.caption(f"Estimated class probability: {ml_probability:.1%}")
+        st.caption("Match strength counts category keyword rules. It is not a probability. The classifier is trained on 34 synthetic examples and is a demonstration, not production-ready.")
+        st.caption(f"Measured 5-fold accuracy on those examples: keyword rules {metrics['rule_accuracy']:.1%}; ML classifier {metrics['ml_accuracy']:.1%}.")
+
+        validation_tab, technical_tab = st.tabs(["MVP & validation", "Technical approach"])
+        with validation_tab:
+            with st.container(border=True):
+                st.markdown(result.get("assessment_addendum", "No validation details are available."))
+        technical_report_text = make_technical_report(result, metrics)
+        with technical_tab:
+            st.markdown("**Prototype flow** · local planning rules, a synthetic-trained category comparison, and human review")
+            flow_steps = [
+                ("1 · Input", "Problem statement and optional context"),
+                ("2 · Classify", "Rules and a small ML model side by side"),
+                ("3 · Draft", "Built-in guide creates a suggested brief"),
+                ("4 · Review", "Person checks and edits recommendations"),
+                ("5 · Export", "Word reports and CSV summary"),
+            ]
+            flow_columns = st.columns(len(flow_steps), gap="small")
+            for flow_column, (flow_title, flow_copy) in zip(flow_columns, flow_steps):
+                with flow_column:
+                    with st.container(border=True):
+                        st.markdown(f"**{flow_title}**")
+                        st.caption(flow_copy)
+            with st.container(border=True):
+                st.markdown(technical_report_text)
+
+        report = markdown_to_docx(make_report(result, metrics))
+        technical_report = markdown_to_docx(technical_report_text)
+        table = pd.DataFrame([{
+            "client": result["context"].get("client", ""),
+            "problem_statement": result["description"],
+            "solution_approach": result["solution_approach"],
+            "generated_with": "Built-in local rule-based planner with separate synthetic-trained ML category comparison; no API",
+        }])
+        report_col, technical_col, summary_col = st.columns(3, gap="medium")
+        with report_col:
+            st.download_button("Opportunity report (Word)", report, file_name="cynbit_ai_opportunity_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch", key=f"opportunity_report_{message_index}")
+        with technical_col:
+            st.download_button("Technical approach (Word)", technical_report, file_name="cynbit_ai_technical_approach.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/build:", width="stretch", key=f"technical_report_{message_index}")
+        with summary_col:
+            st.download_button("Summary data (CSV)", table.to_csv(index=False), file_name="cynbit_ai_opportunity_summary.csv", mime="text/csv", icon=":material/download:", width="stretch", key=f"summary_csv_{message_index}")
 
 
 def make_report(result: dict, classifier_metrics: dict[str, float]) -> str:
@@ -1095,117 +1163,96 @@ with st.sidebar:
     st.caption("Appearance")
     st.radio("Theme", ["Dark", "Light"], horizontal=True, key="theme_mode", label_visibility="collapsed")
 
-# Reserve the first main-page slot for the generated brief so it appears
-# above the challenge form after the user submits.
-analysis_area = st.container()
-
-with st.container():
-    st.html('<h3 class="challenge-title">Define the challenge</h3>')
-    st.caption("Describe the client's current workflow, where it gets stuck, and what a better outcome looks like.")
-    problem = st.text_area("What is the client's challenge or discovery note?", height=150,
-        placeholder="For example: A support team searches several FAQ documents to answer repeated questions, causing delays and inconsistent replies...", key="problem", on_change=refresh_analysis_from_context)
-
-analyze_button, example_button = st.columns([3, 2], gap="medium")
-with analyze_button:
-    st.button("Generate opportunity brief", type="primary", icon=":material/auto_awesome:", on_click=analyze_requirements, width="stretch")
-with example_button:
-    st.button("Load example", icon=":material/quick_reference:", on_click=load_example, width="stretch")
-if "example_status" in st.session_state:
-    st.caption(st.session_state["example_status"])
-else:
-    st.caption(f"Load example cycles through {len(EXAMPLE_CASES)} synthetic scenarios.")
-st.caption("Private by design: your problem statement stays in this app and is not sent to an AI service.")
-
-with analysis_area:
-    if st.session_state.pop("analysis_requested", False):
-        try:
-            with st.spinner("Structuring the discovery brief locally..."):
-                text = st.session_state.get("problem", "").strip()
-                context = st.session_state.get("submitted_context", {})
-                answer = generate_local_solution_approach(text, context)
-            if answer is None:
-                st.session_state["analysis_unrecognized"] = True
-                st.session_state.pop("analysis", None)
-            else:
-                st.session_state["analysis"] = {
-                    "description": text,
-                    "solution_approach": answer,
-                    "assessment_addendum": generate_assessment_addendum(text, context),
-                    "context": context,
-                }
-                st.session_state["analysis_stale"] = False
-        except Exception as exc:
-            st.session_state["analysis_error"] = f"The local planner could not build an approach: {exc}"
-
-    if st.session_state.get("analysis_unrecognized"):
-        st.warning("I couldn't recognize this problem type. Try adding details such as who is affected, what is slow, and which tools are used.")
-    if st.session_state.get("analysis_error"):
-        st.error(f"Could not generate the opportunity brief: {st.session_state['analysis_error']}")
-    if st.session_state.get("analysis_stale"):
-        st.info("Your problem statement or context changed. Generate the opportunity brief again to update it.")
-
-    if "analysis" in st.session_state:
-        result = st.session_state["analysis"]
-        if "solution_approach" not in result:
-            st.session_state.pop("analysis", None)
-        else:
-            st.header("Opportunity analysis", icon=":material/insights:")
-            st.info("The plan is assembled locally from transparent planning rules. The separate category comparison also runs locally; no information is sent to an AI service.")
-            st.caption("Match strength counts category keyword rules in the statement. It is not a probability or calibrated confidence score.")
-            category_model, classifier_metrics = get_category_classifier()
-            rule_category = classify_category_by_rules(result["description"])
-            ml_category, ml_probability = predict_category(category_model, result["description"])
-            rule_column, ml_column = st.columns(2, gap="medium")
-            with rule_column:
-                st.metric("Rule-based category", rule_category or "No category match")
-            with ml_column:
-                st.metric("ML-predicted category", ml_category)
-                st.caption(f"Estimated class probability: {ml_probability:.1%}")
-            st.caption("The ML classifier is trained on only 34 synthetic examples. It is a demonstration, not production-ready; its estimated probability is not a guarantee.")
-            st.caption(f"Measured 5-fold accuracy on those synthetic examples: keyword rules {classifier_metrics['rule_accuracy']:.1%}; ML classifier {classifier_metrics['ml_accuracy']:.1%}.")
-            opportunity_tab, validation_tab, technical_tab = st.tabs(["Opportunity report", "MVP & validation", "Technical approach"])
-            with opportunity_tab:
-                with st.container(border=True):
-                    st.markdown(result["solution_approach"])
-            with validation_tab:
-                with st.container(border=True):
-                    st.markdown(result.get("assessment_addendum", "Generate the brief again to see MVP and validation recommendations."))
-            technical_report_text = make_technical_report(result, classifier_metrics)
-            with technical_tab:
-                st.markdown("**Prototype flow** · local planning rules with a synthetic-trained category comparison and human review")
-                flow_steps = [
-                    ("1 · Input", "Problem statement and optional context"),
-                    ("2 · Classify", "Rules and a small ML model side by side"),
-                    ("3 · Draft", "Built-in guide creates a suggested brief"),
-                    ("4 · Review", "Person checks and edits recommendations"),
-                    ("5 · Export", "Word reports and CSV summary"),
-                ]
-                flow_columns = st.columns(len(flow_steps), gap="small")
-                for flow_column, (flow_title, flow_copy) in zip(flow_columns, flow_steps):
-                    with flow_column:
-                        with st.container(border=True):
-                            st.markdown(f"**{flow_title}**")
-                            st.caption(flow_copy)
-                with st.container(border=True):
-                    st.markdown(technical_report_text)
-            st.subheader("Assessment downloads")
-            report_col, technical_col, summary_col = st.columns(3, gap="medium")
-            export_client = result["context"].get("client", "")
-            report = markdown_to_docx(make_report(result, classifier_metrics))
-            technical_report = markdown_to_docx(technical_report_text)
-            table = pd.DataFrame([{
-                "client": export_client,
-                "problem_statement": result["description"],
-                "solution_approach": result["solution_approach"],
-                "generated_with": "Built-in local rule-based planner with separate synthetic-trained ML category comparison; no API",
-            }])
-            with report_col:
-                st.download_button("Opportunity report (Word)", report, file_name="cynbit_ai_opportunity_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/description:", width="stretch")
-            with technical_col:
-                st.download_button("Technical approach (Word)", technical_report, file_name="cynbit_ai_technical_approach.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon=":material/build:", width="stretch")
-            with summary_col:
-                st.download_button("Summary data (CSV)", table.to_csv(index=False), file_name="cynbit_ai_opportunity_summary.csv", mime="text/csv", icon=":material/download:", width="stretch")
+st.session_state.setdefault("chat_messages", [])
+st.session_state.setdefault("chat_turn_counter", 0)
+st.caption("Describe a client challenge. The local planner will reply with a first-pass solution approach.")
 
 with st.expander("How this prototype works", icon=":material/info:"):
     st.write("**Prototype pipeline:** problem statement and optional context → extraction of explicitly stated details → local rules and a small ML classifier compare workflow categories → a built-in opportunity guide drafts the approach, measures, and missing-detail questions → consultant review and Word/CSV export.")
     st.write("The solution plan remains deterministic and rules-based. The separate TF-IDF + Logistic Regression category classifier is trained on only 34 synthetic examples and is a demonstration, not production-ready. It uses no API and makes no external requests.")
+
+st.button("Load example", icon=":material/quick_reference:", on_click=load_example)
+if "example_status" in st.session_state:
+    st.caption(st.session_state["example_status"])
+st.caption("Private by design: your problem statement stays in this app and is not sent to an AI service.")
+
+if st.session_state.get("analysis_stale"):
+    st.info("Client context changed. Your next message will use the updated details.")
+
+if not st.session_state["chat_messages"]:
+    with st.chat_message("assistant"):
+        st.markdown("Tell me about a client challenge and I’ll suggest a practical starting approach. Include who is affected, what is difficult today, and any tools or constraints you know.")
+
+for message_index, message in enumerate(st.session_state["chat_messages"]):
+    with st.chat_message(message["role"]):
+        if message["role"] == "user":
+            st.markdown(message["content"])
+        else:
+            render_chat_assistant(
+                message,
+                message.get("turn_id", message_index),
+                show_details=message_index == len(st.session_state["chat_messages"]) - 1,
+            )
+
+chat_prompt = st.chat_input(
+    "Describe the client's challenge...",
+    key="chat_prompt",
+    on_submit=prepare_chat_prompt,
+    submit_mode="disable",
+)
+example_prompt = st.session_state.pop("pending_example_prompt", None)
+submitted_prompt = example_prompt or chat_prompt
+
+if submitted_prompt:
+    text = submitted_prompt.strip()
+    if text:
+        st.session_state["chat_turn_counter"] += 1
+        turn_id = st.session_state["chat_turn_counter"]
+        user_message = {"role": "user", "content": text}
+        st.session_state["chat_messages"].append(user_message)
+        with st.chat_message("user"):
+            st.markdown(text)
+
+        with st.chat_message("assistant"):
+            try:
+                with st.spinner("Putting together a practical approach..."):
+                    context = st.session_state.get("submitted_context", {})
+                    answer = generate_local_solution_approach(text, context)
+                    if answer is not None:
+                        result = {
+                            "description": text,
+                            "solution_approach": answer,
+                            "assessment_addendum": generate_assessment_addendum(text, context),
+                            "context": context,
+                        }
+                        _, classifier_metrics = get_category_classifier()
+                if answer is None:
+                    assistant_message = {
+                        "role": "assistant",
+                        "content": "I couldn't recognize this problem type. Try adding who is affected, what is slow or difficult, and which tools are used.",
+                        "error": True,
+                        "turn_id": turn_id,
+                    }
+                    st.session_state.pop("analysis", None)
+                    st.warning(assistant_message["content"])
+                else:
+                    assistant_message = {
+                        "role": "assistant",
+                        "content": answer,
+                        "result": result,
+                        "classifier_metrics": classifier_metrics,
+                        "turn_id": turn_id,
+                    }
+                    st.session_state["analysis"] = result
+                    st.session_state["analysis_stale"] = False
+                    render_chat_assistant(assistant_message, turn_id, show_details=True)
+            except Exception as exc:
+                assistant_message = {
+                    "role": "assistant",
+                    "content": f"I couldn't generate the solution approach: {exc}",
+                    "error": True,
+                    "turn_id": turn_id,
+                }
+                st.error(assistant_message["content"])
+
+        st.session_state["chat_messages"].append(assistant_message)
